@@ -1,0 +1,152 @@
+"""
+例化提取器 — 提取 module_instantiation 节点
+"""
+
+from __future__ import annotations
+import logging
+from typing import Optional
+
+from .verilog_parser import get_node_text, get_node_line
+from database.models import InstanceDef
+
+logger = logging.getLogger(__name__)
+
+
+class InstanceExtractor:
+    """提取模块体中的子模块例化"""
+
+    def extract_from_module_body(self, module_body_node, source_text: str, file_path: str) -> list[InstanceDef]:
+        """
+        从 module body 中提取所有子模块例化
+        
+        Args:
+            module_body_node: module body AST 节点（或整个 module_declaration 节点）
+            source_text: 源码文本
+            file_path: 文件路径
+            
+        Returns:
+            list[InstanceDef]: 例化列表
+        """
+        instances = []
+
+        for i in range(module_body_node.child_count()):
+            child = module_body_node.child(i)
+            if child.kind() == "module_instantiation":
+                insts = self._extract_instantiation(child, source_text, file_path)
+                instances.extend(insts)
+
+        return instances
+
+    def _extract_instantiation(self, node, source_text: str, file_path: str) -> list[InstanceDef]:
+        """从单个 module_instantiation 节点提取所有例化"""
+        module_type = None
+        param_overrides: dict[str, str] = {}
+        instances: list[InstanceDef] = []
+        line = get_node_line(node)
+
+        for i in range(node.child_count()):
+            child = node.child(i)
+
+            if child.kind() == "simple_identifier":
+                # 第一个 simple_identifier 是被例化的模块名
+                if module_type is None:
+                    module_type = get_node_text(child, source_text)
+                module_type = get_node_text(child, source_text)
+
+            elif child.kind() == "parameter_value_assignment":
+                param_overrides = self._extract_param_overrides(child, source_text)
+
+            elif child.kind() == "hierarchical_instance":
+                if module_type:
+                    inst = self._extract_hierarchical_instance(child, source_text, file_path, module_type, param_overrides)
+                    if inst:
+                        instances.append(inst)
+
+        return instances
+
+    def _extract_hierarchical_instance(
+        self, node, source_text: str, file_path: str,
+        module_type: str, param_overrides: dict[str, str]
+    ) -> Optional[InstanceDef]:
+        """从 hierarchical_instance 节点提取单个例化"""
+        instance_name = None
+        port_connections: dict[str, str] = {}
+        line = get_node_line(node)
+
+        for i in range(node.child_count()):
+            child = node.child(i)
+
+            if child.kind() == "name_of_instance":
+                instance_name = get_node_text(child, source_text)
+
+            elif child.kind() == "list_of_port_connections":
+                for j in range(child.child_count()):
+                    pc = child.child(j)
+                    if pc.kind() == "named_port_connection":
+                        formal, actual = self._extract_named_port(pc, source_text)
+                        if formal:
+                            port_connections[formal] = actual
+
+        if instance_name:
+            return InstanceDef(
+                module_type=module_type,
+                instance_name=instance_name,
+                port_connections=port_connections,
+                param_overrides=param_overrides,
+                file_path=file_path,
+                line=line,
+            )
+        return None
+
+    def _extract_named_port(self, node, source_text: str) -> tuple[str, str]:
+        """从 named_port_connection 提取 (formal_port_name, actual_signal)"""
+        formal = ""
+        actual = ""
+
+        for i in range(node.child_count()):
+            child = node.child(i)
+
+            if child.kind() == "simple_identifier":
+                # 第一个 simple_identifier 是形式端口名
+                if not formal:
+                    formal = get_node_text(child, source_text)
+                else:
+                    # 第二个可能是信号名（在 .name(value) 中）
+                    pass
+
+            elif child.kind() == "expression":
+                actual = get_node_text(child, source_text)
+
+        return formal, actual
+
+    def _extract_param_overrides(self, node, source_text: str) -> dict[str, str]:
+        """提取参数覆盖值 #(...)"""
+        text = get_node_text(node, source_text)
+        # 简单解析 #(param1=val1, param2=val2)
+        inner = text.strip()
+        if inner.startswith("#"):
+            inner = inner[1:]
+        if inner.startswith("(") and inner.endswith(")"):
+            inner = inner[1:-1]
+        overrides = {}
+        # 简单按逗号分割（不考虑嵌套括号）
+        depth = 0
+        current = ""
+        for ch in inner:
+            if ch == '(':
+                depth += 1
+                current += ch
+            elif ch == ')':
+                depth -= 1
+                current += ch
+            elif ch == ',' and depth == 0:
+                if '=' in current:
+                    k, v = current.split('=', 1)
+                    overrides[k.strip()] = v.strip()
+                current = ""
+            else:
+                current += ch
+        if current and '=' in current:
+            k, v = current.split('=', 1)
+            overrides[k.strip()] = v.strip()
+        return overrides
