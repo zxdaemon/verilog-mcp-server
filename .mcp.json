@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "verilog-analyzer": {
+      "command": "/wa/project/verilog_mcp_server/dist/verilog-mcp-server",
+      "args": ["--build"]
+    }
+  }
+}

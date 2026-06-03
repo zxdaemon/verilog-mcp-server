@@ -21,6 +21,14 @@ from .tools import register_level1, register_level2, register_level3
 
 logger = logging.getLogger(__name__)
 
+
+def _get_data_dir() -> Path:
+    """获取数据文件目录（兼容 PyInstaller frozen 模式）"""
+    if getattr(sys, 'frozen', False):
+        return Path(sys._MEIPASS) / "verilog_mcp_server"
+    return Path(__file__).parent
+
+
 # 默认配置
 DEFAULT_CONFIG = {
     "server": {
@@ -49,7 +57,7 @@ DEFAULT_CONFIG = {
 def load_config(config_path: str = None) -> dict:
     """加载 YAML 配置文件"""
     if config_path is None:
-        config_path = str(Path(__file__).parent / "config.yaml")
+        config_path = str(_get_data_dir() / "config.yaml")
     path = Path(config_path).expanduser().resolve()
     if path.exists():
         with open(path) as f:
