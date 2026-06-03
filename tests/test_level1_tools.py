@@ -1,9 +1,9 @@
 """测试 Level 1 工具的业务逻辑函数"""
 
-from database.index_store import IndexStore
-from database.models import ModuleDef, PortDef, InstanceDef, SignalDef
-from database.errors import ModuleNotFoundError
-from tools.level1_search import (
+from verilog_mcp_server.database.index_store import IndexStore
+from verilog_mcp_server.database.models import ModuleDef, PortDef, InstanceDef, SignalDef
+from verilog_mcp_server.database.errors import ModuleNotFoundError
+from verilog_mcp_server.tools.level1_search import (
     _do_search_module, _do_get_module, _do_search_signal,
     _do_get_hierarchy, _fmt_module_summary, _fmt_search_module_results,
     _fmt_signal_results,

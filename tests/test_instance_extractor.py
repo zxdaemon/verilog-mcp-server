@@ -1,7 +1,7 @@
 """测试 InstanceExtractor"""
 
-from indexer.verilog_parser import parse_source
-from indexer.instance_extractor import InstanceExtractor
+from verilog_mcp_server.indexer.verilog_parser import parse_source
+from verilog_mcp_server.indexer.instance_extractor import InstanceExtractor
 
 MODULE_WITH_INSTANCES = """
 module top(input clk, input rst_n, input [31:0] a, input [31:0] b, output [31:0] result);

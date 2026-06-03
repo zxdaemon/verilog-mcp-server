@@ -1,6 +1,6 @@
 """测试 DomainError 异常层次"""
 
-from database.errors import (
+from verilog_mcp_server.database.errors import (
     DomainError, ModuleNotFoundError, SignalNotFoundError,
     IndexNotBuiltError, AnalysisError,
 )

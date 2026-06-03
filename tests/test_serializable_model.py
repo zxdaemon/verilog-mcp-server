@@ -1,6 +1,6 @@
 """测试 SerializableModel 序列化往返一致性"""
 
-from database.models import (
+from verilog_mcp_server.database.models import (
     ModuleDef, PortDef, ParamDef, SignalDef, DriverInfo, LoadInfo,
     InstanceDef, AlwaysBlockInfo, AssignmentInfo,
 )

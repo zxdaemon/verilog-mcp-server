@@ -1,7 +1,7 @@
 """测试 SignalExtractor"""
 
-from indexer.verilog_parser import parse_source, find_child
-from indexer.signal_extractor import SignalExtractor
+from verilog_mcp_server.indexer.verilog_parser import parse_source, find_child
+from verilog_mcp_server.indexer.signal_extractor import SignalExtractor
 
 MODULE_WITH_SIGNALS = """
 module test_signals (
@@ -34,7 +34,7 @@ def _find_module_node(tree, module_name, src):
                 for i in range(header.child_count()):
                     child = header.child(i)
                     if child.kind() == "simple_identifier":
-                        from indexer.verilog_parser import get_node_text
+                        from verilog_mcp_server.indexer.verilog_parser import get_node_text
                         if get_node_text(child, src) == module_name:
                             return node
         for i in range(node.child_count()):

@@ -1,12 +1,12 @@
 """测试 Level 2 工具的业务逻辑函数"""
 
-from database.index_store import IndexStore
-from database.models import ModuleDef, PortDef, InstanceDef
-from tools.level2_relation import (
+from verilog_mcp_server.database.index_store import IndexStore
+from verilog_mcp_server.database.models import ModuleDef, PortDef, InstanceDef
+from verilog_mcp_server.tools.level2_relation import (
     _do_trace_signal, _do_where_used, _do_instance_connections,
     _do_hierarchy_tree, _do_hierarchy_instances,
 )
-from database.errors import AnalysisError
+from verilog_mcp_server.database.errors import AnalysisError
 
 
 def make_nested_store() -> IndexStore:

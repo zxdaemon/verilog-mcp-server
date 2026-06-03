@@ -1,7 +1,7 @@
 """测试 PortExtractor"""
 
-from indexer.verilog_parser import parse_source, find_child
-from indexer.port_extractor import PortExtractor
+from verilog_mcp_server.indexer.verilog_parser import parse_source, find_child
+from verilog_mcp_server.indexer.port_extractor import PortExtractor
 
 
 ANSI_PORTS = """
@@ -48,7 +48,7 @@ def test_no_ports_module():
 
 def _find_module_node(tree, module_name, src):
     """Helper: find module_declaration node by name"""
-    from indexer.verilog_parser import get_node_text
+    from verilog_mcp_server.indexer.verilog_parser import get_node_text
 
     def search(node):
         if node.kind() == "module_declaration":

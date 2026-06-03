@@ -6,7 +6,7 @@ import pytest
 def parse_source_available() -> bool:
     """Check if tree-sitter parser can be loaded (requires network on first run)"""
     try:
-        from indexer.verilog_parser import parse_source
+        from verilog_mcp_server.indexer.verilog_parser import parse_source
         tree, src = parse_source("module test(); endmodule")
         return tree is not None
     except Exception:

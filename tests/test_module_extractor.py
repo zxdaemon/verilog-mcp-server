@@ -1,7 +1,7 @@
 """测试 ModuleExtractor"""
 
-from indexer.verilog_parser import parse_source
-from indexer.module_extractor import ModuleExtractor
+from verilog_mcp_server.indexer.verilog_parser import parse_source
+from verilog_mcp_server.indexer.module_extractor import ModuleExtractor
 
 
 SIMPLE_MODULE = """

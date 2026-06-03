@@ -6,16 +6,22 @@ build-backend = "setuptools.build_meta"
 name = "verilog-mcp-server"
 version = "0.1.0"
 description = "Verilog/SystemVerilog RTL 代码语义分析 MCP Server"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
     "mcp>=1.0.0",
     "tree-sitter-language-pack>=0.12.0",
     "pyyaml>=6.0",
 ]
 
+[project.scripts]
+verilog-mcp-server = "verilog_mcp_server:main"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 
 [tool.setuptools.packages.find]
-include = ["database*", "indexer*", "tools*", "analysis*", "tests*"]
+include = ["verilog_mcp_server*"]
+
+[tool.setuptools.package-data]
+verilog_mcp_server = ["*.yaml", "*.yml"]

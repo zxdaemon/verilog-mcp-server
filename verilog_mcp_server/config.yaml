@@ -1,0 +1,43 @@
+# Verilog MCP Server 配置
+server:
+  name: "verilog-analyzer"
+  log_level: "INFO"
+
+index:
+  # 索引基础路径，支持 glob 匹配多个目录
+  paths:
+    - "/wa/project/openc910"
+  # 文件扩展名
+  extensions:
+    - ".v"
+    - ".sv"
+    - ".svh"
+  # 排除目录
+  exclude_dirs:
+    - "node_modules"
+    - ".git"
+    - "__pycache__"
+    - "build"
+    - "work"
+    - "tb"
+    - "test"
+    - "tests"
+    - "sim"
+    - "simulation"
+    - "doc"
+    - "docs"
+  # 排除文件（空列表 = 不过滤）
+  exclude_files: []
+  # 语言映射（全部使用 systemverilog 解析器，兼容 Verilog/SystemVerilog）
+  language_map:
+    ".v": "systemverilog"
+    ".sv": "systemverilog"
+    ".svh": "systemverilog"
+
+cache:
+  # 缓存文件路径（SQLite 持久化，相对于工作目录）
+  path: ".verilog_mcp/cache.db"
+  # 启动时自动加载缓存
+  auto_load: true
+  # 更新时自动保存缓存
+  auto_save: true
