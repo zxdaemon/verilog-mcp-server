@@ -1,0 +1,1995 @@
+flowchart TD
+  subgraph CD_0["🔹 cpurst_b (negedge)"]
+    n0["x_ct_ciu_top: ct_ciu_top [cpurst_b]"]
+    n1["x_ct_l2c_top: ct_l2c_top [cpurst_b]"]
+    n2["x_ct_sysio_top: ct_sysio_top [cpurst_b]"]
+    n3["x_ct_hpcp_top: ct_hpcp_top [cpurst_b]"]
+    n4["x_ct_hpcp_top: ct_hpcp_top [cpurst_b]"]
+    n5["x_ct_piu0_top: ct_piu_top [cpurst_b]"]
+    n0 --> n5
+    n6["x_ct_piu1_top: ct_piu_top [cpurst_b]"]
+    n0 --> n6
+    n7["x_ct_piu2_top_dummy: ct_piu_top_dummy [cpurst_b]"]
+    n0 --> n7
+    n8["x_ct_piu3_top_dummy: ct_piu_top_dummy [cpurst_b]"]
+    n0 --> n8
+    n9["x_ct_ciu_vb: ct_ciu_vb [cpurst_b]"]
+    n0 --> n9
+    n10["x_ct_ciu_l2cif: ct_ciu_l2cif [cpurst_b]"]
+    n0 --> n10
+    n11["x_ct_ciu_ctcq: ct_ciu_ctcq [cpurst_b]"]
+    n0 --> n11
+    n12["x_ct_ciu_ncq: ct_ciu_ncq [cpurst_b]"]
+    n0 --> n12
+    n13["x_ct_ciu_regs: ct_ciu_regs [cpurst_b]"]
+    n0 --> n13
+    n14["x_ct_ciu_apbif: ct_ciu_apbif [cpurst_b]"]
+    n0 --> n14
+    n15["x_ct_l2c_prefetch: ct_l2c_prefetch [cpurst_b]"]
+    n1 --> n15
+    n16["x_ct_clint_func: ct_clint_func [cpurst_b]"]
+    n17["x_ct_sysio_core0: ct_sysio_kid [cpurst_b]"]
+    n2 --> n17
+    n18["x_ct_sysio_core1: ct_sysio_kid [cpurst_b]"]
+    n2 --> n18
+    n19["x_ct_had_sm: ct_had_sm [cpurst_b]"]
+    n20["x_ct_had_ir: ct_had_ir [cpurst_b]"]
+    n21["x_ct_had_common_dbg_info: ct_had_common_dbg_info [cpurst_b]"]
+    n22["x_ct_mmu_iutlb: ct_mmu_iutlb [cpurst_b]"]
+    n23["x_ct_mmu_dutlb: ct_mmu_dutlb [cpurst_b]"]
+    n24["x_ct_mmu_regs: ct_mmu_regs [cpurst_b]"]
+    n25["x_ct_mmu_tlboper: ct_mmu_tlboper [cpurst_b]"]
+    n26["x_ct_mmu_arb: ct_mmu_arb [cpurst_b]"]
+    n27["x_ct_mmu_jtlb: ct_mmu_jtlb [cpurst_b]"]
+    n28["x_ct_mmu_ptw: ct_mmu_ptw [cpurst_b]"]
+    n29["x_ct_pmp_regs: ct_pmp_regs [cpurst_b]"]
+    n30["x_ct_biu_read_channel: ct_biu_read_channel [cpurst_b]"]
+    n31["x_ct_biu_write_channel: ct_biu_write_channel [cpurst_b]"]
+    n32["x_ct_biu_snoop_channel: ct_biu_snoop_channel [cpurst_b]"]
+    n33["x_ct_biu_other_io_sync: ct_biu_other_io_sync [cpurst_b]"]
+    n34["x_ct_had_bkpta: ct_had_bkpt [cpurst_b]"]
+    n35["x_ct_had_bkptb: ct_had_bkpt [cpurst_b]"]
+    n36["x_ct_had_ctrl: ct_had_ctrl [cpurst_b]"]
+    n37["x_ct_had_ddc_ctrl: ct_had_ddc_ctrl [cpurst_b]"]
+    n38["x_ct_had_pcfifo: ct_had_pcfifo [cpurst_b]"]
+    n39["x_ct_had_regs: ct_had_regs [cpurst_b]"]
+    n40["x_ct_had_trace: ct_had_trace [cpurst_b]"]
+    n41["x_ct_had_event: ct_had_event [cpurst_b]"]
+    n42["x_ct_had_dbg_info: ct_had_dbg_info [cpurst_b]"]
+    n43["x_ct_had_nirv_bkpt: ct_had_nirv_bkpt [cpurst_b]"]
+    n44["x_ct_had_private_ir: ct_had_private_ir [cpurst_b]"]
+    n45["x_ct_hpcp_cntinten_0: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n45
+    n46["x_ct_hpcp_cntinten_2: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n46
+    n47["x_ct_hpcp_cntinten_3: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n47
+    n48["x_ct_hpcp_cntinten_4: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n48
+    n49["x_ct_hpcp_cntinten_5: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n49
+    n50["x_ct_hpcp_cntinten_6: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n50
+    n51["x_ct_hpcp_cntinten_7: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n51
+    n52["x_ct_hpcp_cntinten_8: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n52
+    n53["x_ct_hpcp_cntinten_9: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n53
+    n54["x_ct_hpcp_cntinten_10: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n54
+    n55["x_ct_hpcp_cntinten_11: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n55
+    n56["x_ct_hpcp_cntinten_12: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n56
+    n57["x_ct_hpcp_cntinten_13: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n57
+    n58["x_ct_hpcp_cntinten_14: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n58
+    n59["x_ct_hpcp_cntinten_15: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n59
+    n60["x_ct_hpcp_cntinten_16: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n60
+    n61["x_ct_hpcp_cntinten_17: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n61
+    n62["x_ct_hpcp_cntinten_18: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n62
+    n63["x_ct_hpcp_cntinten_19: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n63
+    n64["x_ct_hpcp_cntinten_20: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n64
+    n65["x_ct_hpcp_cntinten_21: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n65
+    n66["x_ct_hpcp_cntinten_22: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n66
+    n67["x_ct_hpcp_cntinten_23: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n67
+    n68["x_ct_hpcp_cntinten_24: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n68
+    n69["x_ct_hpcp_cntinten_25: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n69
+    n70["x_ct_hpcp_cntinten_26: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n70
+    n71["x_ct_hpcp_cntinten_27: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n71
+    n72["x_ct_hpcp_cntinten_28: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n72
+    n73["x_ct_hpcp_cntinten_29: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n73
+    n74["x_ct_hpcp_cntinten_30: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n74
+    n75["x_ct_hpcp_cntinten_31: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n3 --> n75
+    n76["x_ct_hpcp_cntof_0: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n76
+    n77["x_ct_hpcp_cntof_2: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n77
+    n78["x_ct_hpcp_cntof_3: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n78
+    n79["x_ct_hpcp_cntof_4: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n79
+    n80["x_ct_hpcp_cntof_5: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n80
+    n81["x_ct_hpcp_cntof_6: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n81
+    n82["x_ct_hpcp_cntof_7: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n82
+    n83["x_ct_hpcp_cntof_8: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n83
+    n84["x_ct_hpcp_cntof_9: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n84
+    n85["x_ct_hpcp_cntof_10: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n85
+    n86["x_ct_hpcp_cntof_11: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n86
+    n87["x_ct_hpcp_cntof_12: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n87
+    n88["x_ct_hpcp_cntof_13: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n88
+    n89["x_ct_hpcp_cntof_14: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n89
+    n90["x_ct_hpcp_cntof_15: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n90
+    n91["x_ct_hpcp_cntof_16: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n91
+    n92["x_ct_hpcp_cntof_17: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n92
+    n93["x_ct_hpcp_cntof_18: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n93
+    n94["x_ct_hpcp_cntof_19: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n94
+    n95["x_ct_hpcp_cntof_20: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n95
+    n96["x_ct_hpcp_cntof_21: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n96
+    n97["x_ct_hpcp_cntof_22: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n97
+    n98["x_ct_hpcp_cntof_23: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n98
+    n99["x_ct_hpcp_cntof_24: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n99
+    n100["x_ct_hpcp_cntof_25: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n100
+    n101["x_ct_hpcp_cntof_26: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n101
+    n102["x_ct_hpcp_cntof_27: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n102
+    n103["x_ct_hpcp_cntof_28: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n103
+    n104["x_ct_hpcp_cntof_29: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n104
+    n105["x_ct_hpcp_cntof_30: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n105
+    n106["x_ct_hpcp_cntof_31: ct_hpcp_cntof_reg [cpurst_b]"]
+    n3 --> n106
+    n107["x_hpcp_mhpmevent3: ct_hpcp_event [cpurst_b]"]
+    n3 --> n107
+    n108["x_hpcp_mhpmevent4: ct_hpcp_event [cpurst_b]"]
+    n3 --> n108
+    n109["x_hpcp_mhpmevent5: ct_hpcp_event [cpurst_b]"]
+    n3 --> n109
+    n110["x_hpcp_mhpmevent6: ct_hpcp_event [cpurst_b]"]
+    n3 --> n110
+    n111["x_hpcp_mhpmevent7: ct_hpcp_event [cpurst_b]"]
+    n3 --> n111
+    n112["x_hpcp_mhpmevent8: ct_hpcp_event [cpurst_b]"]
+    n3 --> n112
+    n113["x_hpcp_mhpmevent9: ct_hpcp_event [cpurst_b]"]
+    n3 --> n113
+    n114["x_hpcp_mhpmevent10: ct_hpcp_event [cpurst_b]"]
+    n3 --> n114
+    n115["x_hpcp_mhpmevent11: ct_hpcp_event [cpurst_b]"]
+    n3 --> n115
+    n116["x_hpcp_mhpmevent12: ct_hpcp_event [cpurst_b]"]
+    n3 --> n116
+    n117["x_hpcp_mhpmevent13: ct_hpcp_event [cpurst_b]"]
+    n3 --> n117
+    n118["x_hpcp_mhpmevent14: ct_hpcp_event [cpurst_b]"]
+    n3 --> n118
+    n119["x_hpcp_mhpmevent15: ct_hpcp_event [cpurst_b]"]
+    n3 --> n119
+    n120["x_hpcp_mhpmevent16: ct_hpcp_event [cpurst_b]"]
+    n3 --> n120
+    n121["x_hpcp_mhpmevent17: ct_hpcp_event [cpurst_b]"]
+    n3 --> n121
+    n122["x_hpcp_mhpmevent18: ct_hpcp_event [cpurst_b]"]
+    n3 --> n122
+    n123["x_hpcp_mcycle: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n123
+    n124["x_hpcp_minstret: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n124
+    n125["x_hpcp_mhpmcnt3: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n125
+    n126["x_hpcp_mhpmcnt4: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n126
+    n127["x_hpcp_mhpmcnt5: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n127
+    n128["x_hpcp_mhpmcnt6: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n128
+    n129["x_hpcp_mhpmcnt7: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n129
+    n130["x_hpcp_mhpmcnt8: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n130
+    n131["x_hpcp_mhpmcnt9: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n131
+    n132["x_hpcp_mhpmcnt10: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n132
+    n133["x_hpcp_mhpmcnt11: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n133
+    n134["x_hpcp_mhpmcnt12: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n134
+    n135["x_hpcp_mhpmcnt13: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n135
+    n136["x_hpcp_mhpmcnt14: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n136
+    n137["x_hpcp_mhpmcnt15: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n137
+    n138["x_hpcp_mhpmcnt16: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n138
+    n139["x_hpcp_mhpmcnt17: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n139
+    n140["x_hpcp_mhpmcnt18: ct_hpcp_cnt [cpurst_b]"]
+    n3 --> n140
+    n141["x_ct_mmu_iutlb: ct_mmu_iutlb [cpurst_b]"]
+    n142["x_ct_mmu_dutlb: ct_mmu_dutlb [cpurst_b]"]
+    n143["x_ct_mmu_regs: ct_mmu_regs [cpurst_b]"]
+    n144["x_ct_mmu_tlboper: ct_mmu_tlboper [cpurst_b]"]
+    n145["x_ct_mmu_arb: ct_mmu_arb [cpurst_b]"]
+    n146["x_ct_mmu_jtlb: ct_mmu_jtlb [cpurst_b]"]
+    n147["x_ct_mmu_ptw: ct_mmu_ptw [cpurst_b]"]
+    n148["x_ct_pmp_regs: ct_pmp_regs [cpurst_b]"]
+    n149["x_ct_biu_read_channel: ct_biu_read_channel [cpurst_b]"]
+    n150["x_ct_biu_write_channel: ct_biu_write_channel [cpurst_b]"]
+    n151["x_ct_biu_snoop_channel: ct_biu_snoop_channel [cpurst_b]"]
+    n152["x_ct_biu_other_io_sync: ct_biu_other_io_sync [cpurst_b]"]
+    n153["x_ct_had_bkpta: ct_had_bkpt [cpurst_b]"]
+    n154["x_ct_had_bkptb: ct_had_bkpt [cpurst_b]"]
+    n155["x_ct_had_ctrl: ct_had_ctrl [cpurst_b]"]
+    n156["x_ct_had_ddc_ctrl: ct_had_ddc_ctrl [cpurst_b]"]
+    n157["x_ct_had_pcfifo: ct_had_pcfifo [cpurst_b]"]
+    n158["x_ct_had_regs: ct_had_regs [cpurst_b]"]
+    n159["x_ct_had_trace: ct_had_trace [cpurst_b]"]
+    n160["x_ct_had_event: ct_had_event [cpurst_b]"]
+    n161["x_ct_had_dbg_info: ct_had_dbg_info [cpurst_b]"]
+    n162["x_ct_had_nirv_bkpt: ct_had_nirv_bkpt [cpurst_b]"]
+    n163["x_ct_had_private_ir: ct_had_private_ir [cpurst_b]"]
+    n164["x_ct_hpcp_cntinten_0: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n164
+    n165["x_ct_hpcp_cntinten_2: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n165
+    n166["x_ct_hpcp_cntinten_3: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n166
+    n167["x_ct_hpcp_cntinten_4: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n167
+    n168["x_ct_hpcp_cntinten_5: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n168
+    n169["x_ct_hpcp_cntinten_6: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n169
+    n170["x_ct_hpcp_cntinten_7: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n170
+    n171["x_ct_hpcp_cntinten_8: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n171
+    n172["x_ct_hpcp_cntinten_9: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n172
+    n173["x_ct_hpcp_cntinten_10: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n173
+    n174["x_ct_hpcp_cntinten_11: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n174
+    n175["x_ct_hpcp_cntinten_12: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n175
+    n176["x_ct_hpcp_cntinten_13: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n176
+    n177["x_ct_hpcp_cntinten_14: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n177
+    n178["x_ct_hpcp_cntinten_15: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n178
+    n179["x_ct_hpcp_cntinten_16: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n179
+    n180["x_ct_hpcp_cntinten_17: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n180
+    n181["x_ct_hpcp_cntinten_18: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n181
+    n182["x_ct_hpcp_cntinten_19: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n182
+    n183["x_ct_hpcp_cntinten_20: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n183
+    n184["x_ct_hpcp_cntinten_21: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n184
+    n185["x_ct_hpcp_cntinten_22: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n185
+    n186["x_ct_hpcp_cntinten_23: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n186
+    n187["x_ct_hpcp_cntinten_24: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n187
+    n188["x_ct_hpcp_cntinten_25: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n188
+    n189["x_ct_hpcp_cntinten_26: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n189
+    n190["x_ct_hpcp_cntinten_27: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n190
+    n191["x_ct_hpcp_cntinten_28: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n191
+    n192["x_ct_hpcp_cntinten_29: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n192
+    n193["x_ct_hpcp_cntinten_30: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n193
+    n194["x_ct_hpcp_cntinten_31: ct_hpcp_cntinten_reg [cpurst_b]"]
+    n4 --> n194
+    n195["x_ct_hpcp_cntof_0: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n195
+    n196["x_ct_hpcp_cntof_2: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n196
+    n197["x_ct_hpcp_cntof_3: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n197
+    n198["x_ct_hpcp_cntof_4: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n198
+    n199["x_ct_hpcp_cntof_5: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n199
+    n200["x_ct_hpcp_cntof_6: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n200
+    n201["x_ct_hpcp_cntof_7: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n201
+    n202["x_ct_hpcp_cntof_8: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n202
+    n203["x_ct_hpcp_cntof_9: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n203
+    n204["x_ct_hpcp_cntof_10: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n204
+    n205["x_ct_hpcp_cntof_11: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n205
+    n206["x_ct_hpcp_cntof_12: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n206
+    n207["x_ct_hpcp_cntof_13: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n207
+    n208["x_ct_hpcp_cntof_14: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n208
+    n209["x_ct_hpcp_cntof_15: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n209
+    n210["x_ct_hpcp_cntof_16: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n210
+    n211["x_ct_hpcp_cntof_17: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n211
+    n212["x_ct_hpcp_cntof_18: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n212
+    n213["x_ct_hpcp_cntof_19: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n213
+    n214["x_ct_hpcp_cntof_20: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n214
+    n215["x_ct_hpcp_cntof_21: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n215
+    n216["x_ct_hpcp_cntof_22: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n216
+    n217["x_ct_hpcp_cntof_23: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n217
+    n218["x_ct_hpcp_cntof_24: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n218
+    n219["x_ct_hpcp_cntof_25: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n219
+    n220["x_ct_hpcp_cntof_26: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n220
+    n221["x_ct_hpcp_cntof_27: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n221
+    n222["x_ct_hpcp_cntof_28: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n222
+    n223["x_ct_hpcp_cntof_29: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n223
+    n224["x_ct_hpcp_cntof_30: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n224
+    n225["x_ct_hpcp_cntof_31: ct_hpcp_cntof_reg [cpurst_b]"]
+    n4 --> n225
+    n226["x_hpcp_mhpmevent3: ct_hpcp_event [cpurst_b]"]
+    n4 --> n226
+    n227["x_hpcp_mhpmevent4: ct_hpcp_event [cpurst_b]"]
+    n4 --> n227
+    n228["x_hpcp_mhpmevent5: ct_hpcp_event [cpurst_b]"]
+    n4 --> n228
+    n229["x_hpcp_mhpmevent6: ct_hpcp_event [cpurst_b]"]
+    n4 --> n229
+    n230["x_hpcp_mhpmevent7: ct_hpcp_event [cpurst_b]"]
+    n4 --> n230
+    n231["x_hpcp_mhpmevent8: ct_hpcp_event [cpurst_b]"]
+    n4 --> n231
+    n232["x_hpcp_mhpmevent9: ct_hpcp_event [cpurst_b]"]
+    n4 --> n232
+    n233["x_hpcp_mhpmevent10: ct_hpcp_event [cpurst_b]"]
+    n4 --> n233
+    n234["x_hpcp_mhpmevent11: ct_hpcp_event [cpurst_b]"]
+    n4 --> n234
+    n235["x_hpcp_mhpmevent12: ct_hpcp_event [cpurst_b]"]
+    n4 --> n235
+    n236["x_hpcp_mhpmevent13: ct_hpcp_event [cpurst_b]"]
+    n4 --> n236
+    n237["x_hpcp_mhpmevent14: ct_hpcp_event [cpurst_b]"]
+    n4 --> n237
+    n238["x_hpcp_mhpmevent15: ct_hpcp_event [cpurst_b]"]
+    n4 --> n238
+    n239["x_hpcp_mhpmevent16: ct_hpcp_event [cpurst_b]"]
+    n4 --> n239
+    n240["x_hpcp_mhpmevent17: ct_hpcp_event [cpurst_b]"]
+    n4 --> n240
+    n241["x_hpcp_mhpmevent18: ct_hpcp_event [cpurst_b]"]
+    n4 --> n241
+    n242["x_hpcp_mcycle: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n242
+    n243["x_hpcp_minstret: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n243
+    n244["x_hpcp_mhpmcnt3: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n244
+    n245["x_hpcp_mhpmcnt4: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n245
+    n246["x_hpcp_mhpmcnt5: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n246
+    n247["x_hpcp_mhpmcnt6: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n247
+    n248["x_hpcp_mhpmcnt7: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n248
+    n249["x_hpcp_mhpmcnt8: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n249
+    n250["x_hpcp_mhpmcnt9: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n250
+    n251["x_hpcp_mhpmcnt10: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n251
+    n252["x_hpcp_mhpmcnt11: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n252
+    n253["x_hpcp_mhpmcnt12: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n253
+    n254["x_hpcp_mhpmcnt13: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n254
+    n255["x_hpcp_mhpmcnt14: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n255
+    n256["x_hpcp_mhpmcnt15: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n256
+    n257["x_hpcp_mhpmcnt16: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n257
+    n258["x_hpcp_mhpmcnt17: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n258
+    n259["x_hpcp_mhpmcnt18: ct_hpcp_cnt [cpurst_b]"]
+    n4 --> n259
+    n260["x_ct_piu_other_io_sync: ct_piu_other_io_sync [cpurst_b]"]
+    n261["x_ct_piu_other_io_sync: ct_piu_other_io_sync [cpurst_b]"]
+    n262["x_ct_ciu_snb_arb: ct_ciu_snb_arb [cpurst_b]"]
+    n263["x_ct_ciu_snb_arb: ct_ciu_snb_arb [cpurst_b]"]
+    n264["x_ct_vb_aw_entry_0: ct_ciu_vb_aw_entry [cpurst_b]"]
+    n9 --> n264
+    n265["x_ct_vb_aw_entry_1: ct_ciu_vb_aw_entry [cpurst_b]"]
+    n9 --> n265
+    n266["x_ct_ciu_ctcq_reqq_entry_0: ct_ciu_ctcq_reqq_entry [cpurst_b]"]
+    n11 --> n266
+    n267["x_ct_ciu_ctcq_reqq_entry_1: ct_ciu_ctcq_reqq_entry [cpurst_b]"]
+    n11 --> n267
+    n268["x_ct_ciu_ctcq_reqq_entry_2: ct_ciu_ctcq_reqq_entry [cpurst_b]"]
+    n11 --> n268
+    n269["x_ct_ciu_ctcq_reqq_entry_3: ct_ciu_ctcq_reqq_entry [cpurst_b]"]
+    n11 --> n269
+    n270["x_ct_ciu_ctcq_reqq_entry_4: ct_ciu_ctcq_reqq_entry [cpurst_b]"]
+    n11 --> n270
+    n271["x_ct_ciu_ctcq_reqq_entry_5: ct_ciu_ctcq_reqq_entry [cpurst_b]"]
+    n11 --> n271
+    n272["x_ct_ciu_ctcq_reqq_entry_6: ct_ciu_ctcq_reqq_entry [cpurst_b]"]
+    n11 --> n272
+    n273["x_ct_ciu_ctcq_reqq_entry_7: ct_ciu_ctcq_reqq_entry [cpurst_b]"]
+    n11 --> n273
+    n274["x_ct_ciu_ctcq_respq_entry_0: ct_ciu_ctcq_respq_entry [cpurst_b]"]
+    n11 --> n274
+    n275["x_ct_ciu_ctcq_respq_entry_1: ct_ciu_ctcq_respq_entry [cpurst_b]"]
+    n11 --> n275
+    n276["x_ct_ciu_ctcq_respq_entry_2: ct_ciu_ctcq_respq_entry [cpurst_b]"]
+    n11 --> n276
+    n277["x_ct_ciu_ctcq_respq_entry_3: ct_ciu_ctcq_respq_entry [cpurst_b]"]
+    n11 --> n277
+    n278["x_ct_ciu_ctcq_respq_entry_4: ct_ciu_ctcq_respq_entry [cpurst_b]"]
+    n11 --> n278
+    n279["x_ct_ciu_ctcq_respq_entry_5: ct_ciu_ctcq_respq_entry [cpurst_b]"]
+    n11 --> n279
+    n280["x_ct_ciu_ctcq_respq_entry_6: ct_ciu_ctcq_respq_entry [cpurst_b]"]
+    n11 --> n280
+    n281["x_ct_ciu_ctcq_respq_entry_7: ct_ciu_ctcq_respq_entry [cpurst_b]"]
+    n11 --> n281
+    n282["x_ct_ciu_ctcq_respq_entry_8: ct_ciu_ctcq_respq_entry [cpurst_b]"]
+    n11 --> n282
+    n283["x_ct_ciu_ctcq_respq_entry_9: ct_ciu_ctcq_respq_entry [cpurst_b]"]
+    n11 --> n283
+    n284["x_ct_ciu_ctcq_respq_entry_10: ct_ciu_ctcq_respq_entry [cpurst_b]"]
+    n11 --> n284
+    n285["x_ct_ciu_ctcq_respq_entry_11: ct_ciu_ctcq_respq_entry [cpurst_b]"]
+    n11 --> n285
+    n286["x_ct_ciu_ctcq_respq_entry_12: ct_ciu_ctcq_respq_entry [cpurst_b]"]
+    n11 --> n286
+    n287["x_ct_ciu_ctcq_respq_entry_13: ct_ciu_ctcq_respq_entry [cpurst_b]"]
+    n11 --> n287
+    n288["x_ct_ciu_ctcq_respq_entry_14: ct_ciu_ctcq_respq_entry [cpurst_b]"]
+    n11 --> n288
+    n289["x_ct_ciu_ctcq_respq_entry_15: ct_ciu_ctcq_respq_entry [cpurst_b]"]
+    n11 --> n289
+    n290["x_ct_ciu_ncq_gm_core0: ct_ciu_ncq_gm [cpurst_b]"]
+    n12 --> n290
+    n291["x_ct_ciu_ncq_gm_core1: ct_ciu_ncq_gm [cpurst_b]"]
+    n12 --> n291
+    n292["x_ct_ebiu_read_channel: ct_ebiu_read_channel [cpurst_b]"]
+    n293["x_ct_ebiu_write_channel: ct_ebiu_write_channel [cpurst_b]"]
+    n294["x_ct_ebiu_lowpower: ct_ebiu_lowpower [cpurst_b]"]
+    n295["x_ct_l2c_tag: ct_l2c_tag [cpurst_b]"]
+    n296["x_ct_l2c_cmp: ct_l2c_cmp [cpurst_b]"]
+    n297["x_ct_l2c_data: ct_l2c_data [cpurst_b]"]
+    n298["x_ct_l2c_wb: ct_l2c_wb [cpurst_b]"]
+    n299["x_ct_l2c_icc: ct_l2c_icc [cpurst_b]"]
+    n300["x_ct_l2c_tag: ct_l2c_tag [cpurst_b]"]
+    n301["x_ct_l2c_cmp: ct_l2c_cmp [cpurst_b]"]
+    n302["x_ct_l2c_data: ct_l2c_data [cpurst_b]"]
+    n303["x_ct_l2c_wb: ct_l2c_wb [cpurst_b]"]
+    n304["x_ct_l2c_icc: ct_l2c_icc [cpurst_b]"]
+    n305["x_ct_had_etm_if_core0: ct_had_etm_if [cpurst_b]"]
+    n306["x_ct_had_etm_if_core1: ct_had_etm_if [cpurst_b]"]
+  end
+  subgraph CD_1["🔹 hpcp_clk (posedge)"]
+    n307["x_ct_hpcp_top: ct_hpcp_top [hpcp_clk]"]
+    n308["x_ct_hpcp_top: ct_hpcp_top [hpcp_clk]"]
+    n309["x_ct_hpcp_cntinten_0: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n309
+    n310["x_ct_hpcp_cntinten_2: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n310
+    n311["x_ct_hpcp_cntinten_3: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n311
+    n312["x_ct_hpcp_cntinten_4: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n312
+    n313["x_ct_hpcp_cntinten_5: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n313
+    n314["x_ct_hpcp_cntinten_6: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n314
+    n315["x_ct_hpcp_cntinten_7: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n315
+    n316["x_ct_hpcp_cntinten_8: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n316
+    n317["x_ct_hpcp_cntinten_9: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n317
+    n318["x_ct_hpcp_cntinten_10: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n318
+    n319["x_ct_hpcp_cntinten_11: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n319
+    n320["x_ct_hpcp_cntinten_12: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n320
+    n321["x_ct_hpcp_cntinten_13: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n321
+    n322["x_ct_hpcp_cntinten_14: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n322
+    n323["x_ct_hpcp_cntinten_15: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n323
+    n324["x_ct_hpcp_cntinten_16: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n324
+    n325["x_ct_hpcp_cntinten_17: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n325
+    n326["x_ct_hpcp_cntinten_18: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n326
+    n327["x_ct_hpcp_cntinten_19: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n327
+    n328["x_ct_hpcp_cntinten_20: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n328
+    n329["x_ct_hpcp_cntinten_21: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n329
+    n330["x_ct_hpcp_cntinten_22: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n330
+    n331["x_ct_hpcp_cntinten_23: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n331
+    n332["x_ct_hpcp_cntinten_24: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n332
+    n333["x_ct_hpcp_cntinten_25: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n333
+    n334["x_ct_hpcp_cntinten_26: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n334
+    n335["x_ct_hpcp_cntinten_27: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n335
+    n336["x_ct_hpcp_cntinten_28: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n336
+    n337["x_ct_hpcp_cntinten_29: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n337
+    n338["x_ct_hpcp_cntinten_30: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n338
+    n339["x_ct_hpcp_cntinten_31: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n307 --> n339
+    n340["x_ct_hpcp_cntof_0: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n340
+    n341["x_ct_hpcp_cntof_2: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n341
+    n342["x_ct_hpcp_cntof_3: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n342
+    n343["x_ct_hpcp_cntof_4: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n343
+    n344["x_ct_hpcp_cntof_5: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n344
+    n345["x_ct_hpcp_cntof_6: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n345
+    n346["x_ct_hpcp_cntof_7: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n346
+    n347["x_ct_hpcp_cntof_8: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n347
+    n348["x_ct_hpcp_cntof_9: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n348
+    n349["x_ct_hpcp_cntof_10: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n349
+    n350["x_ct_hpcp_cntof_11: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n350
+    n351["x_ct_hpcp_cntof_12: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n351
+    n352["x_ct_hpcp_cntof_13: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n352
+    n353["x_ct_hpcp_cntof_14: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n353
+    n354["x_ct_hpcp_cntof_15: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n354
+    n355["x_ct_hpcp_cntof_16: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n355
+    n356["x_ct_hpcp_cntof_17: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n356
+    n357["x_ct_hpcp_cntof_18: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n357
+    n358["x_ct_hpcp_cntof_19: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n358
+    n359["x_ct_hpcp_cntof_20: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n359
+    n360["x_ct_hpcp_cntof_21: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n360
+    n361["x_ct_hpcp_cntof_22: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n361
+    n362["x_ct_hpcp_cntof_23: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n362
+    n363["x_ct_hpcp_cntof_24: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n363
+    n364["x_ct_hpcp_cntof_25: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n364
+    n365["x_ct_hpcp_cntof_26: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n365
+    n366["x_ct_hpcp_cntof_27: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n366
+    n367["x_ct_hpcp_cntof_28: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n367
+    n368["x_ct_hpcp_cntof_29: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n368
+    n369["x_ct_hpcp_cntof_30: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n369
+    n370["x_ct_hpcp_cntof_31: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n307 --> n370
+    n371["x_ct_hpcp_cntinten_0: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n371
+    n372["x_ct_hpcp_cntinten_2: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n372
+    n373["x_ct_hpcp_cntinten_3: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n373
+    n374["x_ct_hpcp_cntinten_4: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n374
+    n375["x_ct_hpcp_cntinten_5: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n375
+    n376["x_ct_hpcp_cntinten_6: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n376
+    n377["x_ct_hpcp_cntinten_7: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n377
+    n378["x_ct_hpcp_cntinten_8: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n378
+    n379["x_ct_hpcp_cntinten_9: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n379
+    n380["x_ct_hpcp_cntinten_10: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n380
+    n381["x_ct_hpcp_cntinten_11: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n381
+    n382["x_ct_hpcp_cntinten_12: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n382
+    n383["x_ct_hpcp_cntinten_13: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n383
+    n384["x_ct_hpcp_cntinten_14: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n384
+    n385["x_ct_hpcp_cntinten_15: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n385
+    n386["x_ct_hpcp_cntinten_16: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n386
+    n387["x_ct_hpcp_cntinten_17: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n387
+    n388["x_ct_hpcp_cntinten_18: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n388
+    n389["x_ct_hpcp_cntinten_19: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n389
+    n390["x_ct_hpcp_cntinten_20: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n390
+    n391["x_ct_hpcp_cntinten_21: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n391
+    n392["x_ct_hpcp_cntinten_22: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n392
+    n393["x_ct_hpcp_cntinten_23: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n393
+    n394["x_ct_hpcp_cntinten_24: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n394
+    n395["x_ct_hpcp_cntinten_25: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n395
+    n396["x_ct_hpcp_cntinten_26: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n396
+    n397["x_ct_hpcp_cntinten_27: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n397
+    n398["x_ct_hpcp_cntinten_28: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n398
+    n399["x_ct_hpcp_cntinten_29: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n399
+    n400["x_ct_hpcp_cntinten_30: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n400
+    n401["x_ct_hpcp_cntinten_31: ct_hpcp_cntinten_reg [hpcp_clk]"]
+    n308 --> n401
+    n402["x_ct_hpcp_cntof_0: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n402
+    n403["x_ct_hpcp_cntof_2: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n403
+    n404["x_ct_hpcp_cntof_3: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n404
+    n405["x_ct_hpcp_cntof_4: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n405
+    n406["x_ct_hpcp_cntof_5: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n406
+    n407["x_ct_hpcp_cntof_6: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n407
+    n408["x_ct_hpcp_cntof_7: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n408
+    n409["x_ct_hpcp_cntof_8: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n409
+    n410["x_ct_hpcp_cntof_9: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n410
+    n411["x_ct_hpcp_cntof_10: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n411
+    n412["x_ct_hpcp_cntof_11: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n412
+    n413["x_ct_hpcp_cntof_12: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n413
+    n414["x_ct_hpcp_cntof_13: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n414
+    n415["x_ct_hpcp_cntof_14: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n415
+    n416["x_ct_hpcp_cntof_15: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n416
+    n417["x_ct_hpcp_cntof_16: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n417
+    n418["x_ct_hpcp_cntof_17: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n418
+    n419["x_ct_hpcp_cntof_18: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n419
+    n420["x_ct_hpcp_cntof_19: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n420
+    n421["x_ct_hpcp_cntof_20: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n421
+    n422["x_ct_hpcp_cntof_21: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n422
+    n423["x_ct_hpcp_cntof_22: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n423
+    n424["x_ct_hpcp_cntof_23: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n424
+    n425["x_ct_hpcp_cntof_24: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n425
+    n426["x_ct_hpcp_cntof_25: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n426
+    n427["x_ct_hpcp_cntof_26: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n427
+    n428["x_ct_hpcp_cntof_27: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n428
+    n429["x_ct_hpcp_cntof_28: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n429
+    n430["x_ct_hpcp_cntof_29: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n430
+    n431["x_ct_hpcp_cntof_30: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n431
+    n432["x_ct_hpcp_cntof_31: ct_hpcp_cntof_reg [hpcp_clk]"]
+    n308 --> n432
+  end
+  subgraph CD_2["🔹 pad_cpu_rst_b (negedge)"]
+    n433["x_cpu_sub_system_axi: cpu_sub_system_axi [pad_cpu_rst_b]"]
+    n434["x_axi_interconnect: axi_interconnect128 [aresetn]"]
+    n435["x_axi_fifo: axi_fifo [cpu_rst_b]"]
+    n436["x_axi_slave128: axi_slave128 [pad_cpu_rst_b]"]
+    n437["x_axi_err: axi_err128 [pad_cpu_rst_b]"]
+    n438["x_axi2ahb: axi2ahb [pad_cpu_rst_b]"]
+    n439["x_axi_err1: axi_err128 [pad_cpu_rst_b]"]
+    n440["x_ahb: ahb [pad_cpu_rst_b]"]
+    n441["x_err_gen: err_gen [pad_cpu_rst_b]"]
+    n442["wid_for_axi4: wid_for_axi4 [pad_cpu_rst_b]"]
+    n433 --> n442
+    n443["x_counter_entry0: fifo_counter [cpu_rst_b]"]
+    n435 --> n443
+    n444["x_counter_entry1: fifo_counter [cpu_rst_b]"]
+    n435 --> n444
+    n445["x_counter_entry2: fifo_counter [cpu_rst_b]"]
+    n435 --> n445
+    n446["x_counter_entry3: fifo_counter [cpu_rst_b]"]
+    n435 --> n446
+    n447["x_counter_entry4: fifo_counter [cpu_rst_b]"]
+    n435 --> n447
+    n448["x_counter_entry5: fifo_counter [cpu_rst_b]"]
+    n435 --> n448
+    n449["x_counter_entry6: fifo_counter [cpu_rst_b]"]
+    n435 --> n449
+    n450["x_counter_entry7: fifo_counter [cpu_rst_b]"]
+    n435 --> n450
+    n451["x_axi_fifo_entry0: axi_fifo_entry [entry_rst_b]"]
+    n435 --> n451
+    n452["x_axi_fifo_entry1: axi_fifo_entry [entry_rst_b]"]
+    n435 --> n452
+    n453["x_axi_fifo_entry2: axi_fifo_entry [entry_rst_b]"]
+    n435 --> n453
+    n454["x_axi_fifo_entry3: axi_fifo_entry [entry_rst_b]"]
+    n435 --> n454
+    n455["x_axi_fifo_entry4: axi_fifo_entry [entry_rst_b]"]
+    n435 --> n455
+    n456["x_axi_fifo_entry5: axi_fifo_entry [entry_rst_b]"]
+    n435 --> n456
+    n457["x_axi_fifo_entry6: axi_fifo_entry [entry_rst_b]"]
+    n435 --> n457
+    n458["x_axi_fifo_entry7: axi_fifo_entry [entry_rst_b]"]
+    n435 --> n458
+    n459["x_ahb2apb: ahb2apb [pad_cpu_rst_b]"]
+    n460["x_apb_bridge: apb_bridge [hrst_b]"]
+    n461["x_timer: timer [presetn]"]
+    n462["x_stimer: timer [presetn]"]
+    n463["x_clk_gen: clk_gen [clkrst_b]"]
+    n464["x_pmu: pmu [pad_cpu_rst_b]"]
+    n465["x_wid_entry_31: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n465
+    n466["x_wid_entry_30: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n466
+    n467["x_wid_entry_29: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n467
+    n468["x_wid_entry_28: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n468
+    n469["x_wid_entry_27: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n469
+    n470["x_wid_entry_26: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n470
+    n471["x_wid_entry_25: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n471
+    n472["x_wid_entry_24: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n472
+    n473["x_wid_entry_23: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n473
+    n474["x_wid_entry_22: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n474
+    n475["x_wid_entry_21: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n475
+    n476["x_wid_entry_20: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n476
+    n477["x_wid_entry_19: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n477
+    n478["x_wid_entry_18: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n478
+    n479["x_wid_entry_17: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n479
+    n480["x_wid_entry_16: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n480
+    n481["x_wid_entry_15: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n481
+    n482["x_wid_entry_14: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n482
+    n483["x_wid_entry_13: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n483
+    n484["x_wid_entry_12: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n484
+    n485["x_wid_entry_11: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n485
+    n486["x_wid_entry_10: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n486
+    n487["x_wid_entry_9: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n487
+    n488["x_wid_entry_8: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n488
+    n489["x_wid_entry_7: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n489
+    n490["x_wid_entry_6: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n490
+    n491["x_wid_entry_5: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n491
+    n492["x_wid_entry_4: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n492
+    n493["x_wid_entry_3: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n493
+    n494["x_wid_entry_2: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n494
+    n495["x_wid_entry_1: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n495
+    n496["x_wid_entry_0: wid_entry [pad_cpu_rst_b]"]
+    n442 --> n496
+    n497["x_uart_apb_reg: uart_apb_reg [rst_b]"]
+    n498["x_uart_baud_gen: uart_baud_gen [rst_b]"]
+    n499["x_uart_ctrl: uart_ctrl [rst_b]"]
+    n500["x_uart_trans: uart_trans [rst_b]"]
+    n501["x_uart_receive: uart_receive [rst_b]"]
+    n502["timer_1: counter [presetn]"]
+    n461 --> n502
+    n503["timer_2: counter [presetn]"]
+    n461 --> n503
+    n504["timer_3: counter [presetn]"]
+    n461 --> n504
+    n505["timer_4: counter [presetn]"]
+    n461 --> n505
+    n506["x_gpio_apbif: gpio_apbif [presetn]"]
+    n507["x_gpio_ctrl: gpio_ctrl [presetn]"]
+    n508["timer_1: counter [presetn]"]
+    n462 --> n508
+    n509["timer_2: counter [presetn]"]
+    n462 --> n509
+    n510["timer_3: counter [presetn]"]
+    n462 --> n510
+    n511["timer_4: counter [presetn]"]
+    n462 --> n511
+    n512["x_cpu2pmu_sync1: sync [pad_cpu_rst_b]"]
+    n464 --> n512
+    n513["x_cpu2pmu_sync2: sync [pad_cpu_rst_b]"]
+    n464 --> n513
+    n514["x_ct_mp_clk_top: ct_mp_clk_top [pad_yy_dft_clk_rst_b]"]
+  end
+  subgraph CD_3["🔹 per_clk (posedge)"]
+    n515["x_axi_interconnect: axi_interconnect128 [aclk]"]
+    n516["x_axi_fifo: axi_fifo [cpu_clk]"]
+    n517["x_axi_slave128: axi_slave128 [pll_core_cpuclk]"]
+    n518["x_axi_err: axi_err128 [pll_core_cpuclk]"]
+    n519["x_axi2ahb: axi2ahb [pll_core_cpuclk]"]
+    n520["x_axi_err1: axi_err128 [pll_core_cpuclk]"]
+    n521["x_ahb: ahb [pll_core_cpuclk]"]
+    n522["x_err_gen: err_gen [pll_core_cpuclk]"]
+    n523["wid_for_axi4: wid_for_axi4 [per_clk]"]
+    n524["x_counter_entry0: fifo_counter [cpu_clk]"]
+    n516 --> n524
+    n525["x_counter_entry1: fifo_counter [cpu_clk]"]
+    n516 --> n525
+    n526["x_counter_entry2: fifo_counter [cpu_clk]"]
+    n516 --> n526
+    n527["x_counter_entry3: fifo_counter [cpu_clk]"]
+    n516 --> n527
+    n528["x_counter_entry4: fifo_counter [cpu_clk]"]
+    n516 --> n528
+    n529["x_counter_entry5: fifo_counter [cpu_clk]"]
+    n516 --> n529
+    n530["x_counter_entry6: fifo_counter [cpu_clk]"]
+    n516 --> n530
+    n531["x_counter_entry7: fifo_counter [cpu_clk]"]
+    n516 --> n531
+    n532["x_axi_fifo_entry0: axi_fifo_entry [entry_clk]"]
+    n516 --> n532
+    n533["x_axi_fifo_entry1: axi_fifo_entry [entry_clk]"]
+    n516 --> n533
+    n534["x_axi_fifo_entry2: axi_fifo_entry [entry_clk]"]
+    n516 --> n534
+    n535["x_axi_fifo_entry3: axi_fifo_entry [entry_clk]"]
+    n516 --> n535
+    n536["x_axi_fifo_entry4: axi_fifo_entry [entry_clk]"]
+    n516 --> n536
+    n537["x_axi_fifo_entry5: axi_fifo_entry [entry_clk]"]
+    n516 --> n537
+    n538["x_axi_fifo_entry6: axi_fifo_entry [entry_clk]"]
+    n516 --> n538
+    n539["x_axi_fifo_entry7: axi_fifo_entry [entry_clk]"]
+    n516 --> n539
+    n540["x_f_spsram_large: f_spsram_large [CLK]"]
+    n517 --> n540
+    n541["x_f_spsram_32768x128_L: f_spsram_32768x128 [CLK]"]
+    n518 --> n541
+    n542["x_f_spsram_32768x128_L: f_spsram_32768x128 [CLK]"]
+    n520 --> n542
+    n543["x_ahb2apb: ahb2apb [pll_core_cpuclk]"]
+    n544["x_apb_bridge: apb_bridge [hclk]"]
+    n545["x_timer: timer [pclk]"]
+    n546["x_stimer: timer [pclk]"]
+    n547["x_pmu: pmu [pmu_clk]"]
+    n548["x_wid_entry_31: wid_entry [per_clk]"]
+    n523 --> n548
+    n549["x_wid_entry_30: wid_entry [per_clk]"]
+    n523 --> n549
+    n550["x_wid_entry_29: wid_entry [per_clk]"]
+    n523 --> n550
+    n551["x_wid_entry_28: wid_entry [per_clk]"]
+    n523 --> n551
+    n552["x_wid_entry_27: wid_entry [per_clk]"]
+    n523 --> n552
+    n553["x_wid_entry_26: wid_entry [per_clk]"]
+    n523 --> n553
+    n554["x_wid_entry_25: wid_entry [per_clk]"]
+    n523 --> n554
+    n555["x_wid_entry_24: wid_entry [per_clk]"]
+    n523 --> n555
+    n556["x_wid_entry_23: wid_entry [per_clk]"]
+    n523 --> n556
+    n557["x_wid_entry_22: wid_entry [per_clk]"]
+    n523 --> n557
+    n558["x_wid_entry_21: wid_entry [per_clk]"]
+    n523 --> n558
+    n559["x_wid_entry_20: wid_entry [per_clk]"]
+    n523 --> n559
+    n560["x_wid_entry_19: wid_entry [per_clk]"]
+    n523 --> n560
+    n561["x_wid_entry_18: wid_entry [per_clk]"]
+    n523 --> n561
+    n562["x_wid_entry_17: wid_entry [per_clk]"]
+    n523 --> n562
+    n563["x_wid_entry_16: wid_entry [per_clk]"]
+    n523 --> n563
+    n564["x_wid_entry_15: wid_entry [per_clk]"]
+    n523 --> n564
+    n565["x_wid_entry_14: wid_entry [per_clk]"]
+    n523 --> n565
+    n566["x_wid_entry_13: wid_entry [per_clk]"]
+    n523 --> n566
+    n567["x_wid_entry_12: wid_entry [per_clk]"]
+    n523 --> n567
+    n568["x_wid_entry_11: wid_entry [per_clk]"]
+    n523 --> n568
+    n569["x_wid_entry_10: wid_entry [per_clk]"]
+    n523 --> n569
+    n570["x_wid_entry_9: wid_entry [per_clk]"]
+    n523 --> n570
+    n571["x_wid_entry_8: wid_entry [per_clk]"]
+    n523 --> n571
+    n572["x_wid_entry_7: wid_entry [per_clk]"]
+    n523 --> n572
+    n573["x_wid_entry_6: wid_entry [per_clk]"]
+    n523 --> n573
+    n574["x_wid_entry_5: wid_entry [per_clk]"]
+    n523 --> n574
+    n575["x_wid_entry_4: wid_entry [per_clk]"]
+    n523 --> n575
+    n576["x_wid_entry_3: wid_entry [per_clk]"]
+    n523 --> n576
+    n577["x_wid_entry_2: wid_entry [per_clk]"]
+    n523 --> n577
+    n578["x_wid_entry_1: wid_entry [per_clk]"]
+    n523 --> n578
+    n579["x_wid_entry_0: wid_entry [per_clk]"]
+    n523 --> n579
+    n580["x_uart_apb_reg: uart_apb_reg [sys_clk]"]
+    n581["x_uart_baud_gen: uart_baud_gen [sys_clk]"]
+    n582["x_uart_ctrl: uart_ctrl [sys_clk]"]
+    n583["x_uart_trans: uart_trans [sys_clk]"]
+    n584["x_uart_receive: uart_receive [sys_clk]"]
+    n585["timer_1: counter [pclk]"]
+    n545 --> n585
+    n586["timer_2: counter [pclk]"]
+    n545 --> n586
+    n587["timer_3: counter [pclk]"]
+    n545 --> n587
+    n588["timer_4: counter [pclk]"]
+    n545 --> n588
+    n589["x_gpio_apbif: gpio_apbif [pclk]"]
+    n590["x_gpio_ctrl: gpio_ctrl [pclk]"]
+    n591["x_gpio_ctrl: gpio_ctrl [pclk_intr]"]
+    n592["timer_1: counter [pclk]"]
+    n546 --> n592
+    n593["timer_2: counter [pclk]"]
+    n546 --> n593
+    n594["timer_3: counter [pclk]"]
+    n546 --> n594
+    n595["timer_4: counter [pclk]"]
+    n546 --> n595
+  end
+  subgraph CD_4["🔹 PortAClk (posedge)"]
+    n596["ram0: ram [PortAClk]"]
+    n597["ram1: ram [PortAClk]"]
+    n598["ram2: ram [PortAClk]"]
+    n599["ram3: ram [PortAClk]"]
+    n600["ram4: ram [PortAClk]"]
+    n601["ram5: ram [PortAClk]"]
+    n602["ram6: ram [PortAClk]"]
+    n603["ram7: ram [PortAClk]"]
+    n604["ram8: ram [PortAClk]"]
+    n605["ram9: ram [PortAClk]"]
+    n606["ram10: ram [PortAClk]"]
+    n607["ram11: ram [PortAClk]"]
+    n608["ram12: ram [PortAClk]"]
+    n609["ram13: ram [PortAClk]"]
+    n610["ram14: ram [PortAClk]"]
+    n611["ram15: ram [PortAClk]"]
+    n612["ram0: ram [PortAClk]"]
+    n613["ram1: ram [PortAClk]"]
+    n614["ram2: ram [PortAClk]"]
+    n615["ram3: ram [PortAClk]"]
+    n616["ram4: ram [PortAClk]"]
+    n617["ram5: ram [PortAClk]"]
+    n618["ram6: ram [PortAClk]"]
+    n619["ram7: ram [PortAClk]"]
+    n620["ram8: ram [PortAClk]"]
+    n621["ram9: ram [PortAClk]"]
+    n622["ram10: ram [PortAClk]"]
+    n623["ram11: ram [PortAClk]"]
+    n624["ram12: ram [PortAClk]"]
+    n625["ram13: ram [PortAClk]"]
+    n626["ram14: ram [PortAClk]"]
+    n627["ram15: ram [PortAClk]"]
+    n628["ram0: ram [PortAClk]"]
+    n629["ram1: ram [PortAClk]"]
+    n630["ram2: ram [PortAClk]"]
+    n631["ram3: ram [PortAClk]"]
+    n632["ram4: ram [PortAClk]"]
+    n633["ram5: ram [PortAClk]"]
+    n634["ram6: ram [PortAClk]"]
+    n635["ram7: ram [PortAClk]"]
+    n636["ram8: ram [PortAClk]"]
+    n637["ram9: ram [PortAClk]"]
+    n638["ram10: ram [PortAClk]"]
+    n639["ram11: ram [PortAClk]"]
+    n640["ram12: ram [PortAClk]"]
+    n641["ram13: ram [PortAClk]"]
+    n642["ram14: ram [PortAClk]"]
+    n643["ram15: ram [PortAClk]"]
+  end
+  subgraph CD_5["🔹 cnt_clk (posedge)"]
+    n644["x_hpcp_mcycle: ct_hpcp_cnt [cnt_clk]"]
+    n645["x_hpcp_minstret: ct_hpcp_cnt [cnt_clk]"]
+    n646["x_hpcp_mhpmcnt3: ct_hpcp_cnt [cnt_clk]"]
+    n647["x_hpcp_mhpmcnt4: ct_hpcp_cnt [cnt_clk]"]
+    n648["x_hpcp_mhpmcnt5: ct_hpcp_cnt [cnt_clk]"]
+    n649["x_hpcp_mhpmcnt6: ct_hpcp_cnt [cnt_clk]"]
+    n650["x_hpcp_mhpmcnt7: ct_hpcp_cnt [cnt_clk]"]
+    n651["x_hpcp_mhpmcnt8: ct_hpcp_cnt [cnt_clk]"]
+    n652["x_hpcp_mhpmcnt9: ct_hpcp_cnt [cnt_clk]"]
+    n653["x_hpcp_mhpmcnt10: ct_hpcp_cnt [cnt_clk]"]
+    n654["x_hpcp_mhpmcnt11: ct_hpcp_cnt [cnt_clk]"]
+    n655["x_hpcp_mhpmcnt12: ct_hpcp_cnt [cnt_clk]"]
+    n656["x_hpcp_mhpmcnt13: ct_hpcp_cnt [cnt_clk]"]
+    n657["x_hpcp_mhpmcnt14: ct_hpcp_cnt [cnt_clk]"]
+    n658["x_hpcp_mhpmcnt15: ct_hpcp_cnt [cnt_clk]"]
+    n659["x_hpcp_mhpmcnt16: ct_hpcp_cnt [cnt_clk]"]
+    n660["x_hpcp_mhpmcnt17: ct_hpcp_cnt [cnt_clk]"]
+    n661["x_hpcp_mhpmcnt18: ct_hpcp_cnt [cnt_clk]"]
+    n662["x_hpcp_mcycle: ct_hpcp_cnt [cnt_clk]"]
+    n663["x_hpcp_minstret: ct_hpcp_cnt [cnt_clk]"]
+    n664["x_hpcp_mhpmcnt3: ct_hpcp_cnt [cnt_clk]"]
+    n665["x_hpcp_mhpmcnt4: ct_hpcp_cnt [cnt_clk]"]
+    n666["x_hpcp_mhpmcnt5: ct_hpcp_cnt [cnt_clk]"]
+    n667["x_hpcp_mhpmcnt6: ct_hpcp_cnt [cnt_clk]"]
+    n668["x_hpcp_mhpmcnt7: ct_hpcp_cnt [cnt_clk]"]
+    n669["x_hpcp_mhpmcnt8: ct_hpcp_cnt [cnt_clk]"]
+    n670["x_hpcp_mhpmcnt9: ct_hpcp_cnt [cnt_clk]"]
+    n671["x_hpcp_mhpmcnt10: ct_hpcp_cnt [cnt_clk]"]
+    n672["x_hpcp_mhpmcnt11: ct_hpcp_cnt [cnt_clk]"]
+    n673["x_hpcp_mhpmcnt12: ct_hpcp_cnt [cnt_clk]"]
+    n674["x_hpcp_mhpmcnt13: ct_hpcp_cnt [cnt_clk]"]
+    n675["x_hpcp_mhpmcnt14: ct_hpcp_cnt [cnt_clk]"]
+    n676["x_hpcp_mhpmcnt15: ct_hpcp_cnt [cnt_clk]"]
+    n677["x_hpcp_mhpmcnt16: ct_hpcp_cnt [cnt_clk]"]
+    n678["x_hpcp_mhpmcnt17: ct_hpcp_cnt [cnt_clk]"]
+    n679["x_hpcp_mhpmcnt18: ct_hpcp_cnt [cnt_clk]"]
+  end
+  subgraph CD_6["🔹 ctrl_clk (posedge)"]
+    n680["x_ct_ciu_regs: ct_ciu_regs [ctrl_clk]"]
+    n681["x_ct_piu_ar_dfifo: ct_fifo [ctrl_clk]"]
+    n682["x_ct_piu_wd_sid_fifo: ct_fifo [ctrl_clk]"]
+    n683["x_ct_piu_wd_wns_dfifo: ct_fifo [ctrl_clk]"]
+    n684["x_ct_piu_wd_ws_dfifo: ct_fifo [ctrl_clk]"]
+    n685["x_ct_piu_cd_dfifo: ct_fifo [ctrl_clk]"]
+    n686["x_ct_piu_ac_dfifo: ct_fifo [ctrl_clk]"]
+    n687["x_ct_piu_cr_dfifo: ct_fifo [ctrl_clk]"]
+    n688["x_ct_piu_rspq: ct_fifo [ctrl_clk]"]
+    n689["x_ct_piu_cd_sid_fifo: ct_fifo [ctrl_clk]"]
+    n690["x_ct_piu_r_dfifo: ct_fifo [ctrl_clk]"]
+    n691["x_ct_piu_rack_dfifo: ct_fifo [ctrl_clk]"]
+    n692["x_ct_piu_b_dfifo: ct_fifo [ctrl_clk]"]
+    n693["x_ct_piu_back_dfifo: ct_fifo [ctrl_clk]"]
+    n694["x_ct_piu_ar_dfifo: ct_fifo [ctrl_clk]"]
+    n695["x_ct_piu_wd_sid_fifo: ct_fifo [ctrl_clk]"]
+    n696["x_ct_piu_wd_wns_dfifo: ct_fifo [ctrl_clk]"]
+    n697["x_ct_piu_wd_ws_dfifo: ct_fifo [ctrl_clk]"]
+    n698["x_ct_piu_cd_dfifo: ct_fifo [ctrl_clk]"]
+    n699["x_ct_piu_ac_dfifo: ct_fifo [ctrl_clk]"]
+    n700["x_ct_piu_cr_dfifo: ct_fifo [ctrl_clk]"]
+    n701["x_ct_piu_rspq: ct_fifo [ctrl_clk]"]
+    n702["x_ct_piu_cd_sid_fifo: ct_fifo [ctrl_clk]"]
+    n703["x_ct_piu_r_dfifo: ct_fifo [ctrl_clk]"]
+    n704["x_ct_piu_rack_dfifo: ct_fifo [ctrl_clk]"]
+    n705["x_ct_piu_b_dfifo: ct_fifo [ctrl_clk]"]
+    n706["x_ct_piu_back_dfifo: ct_fifo [ctrl_clk]"]
+    n707["x_ct_dvm_op_rid_rfifo: ct_fifo [ctrl_clk]"]
+    n708["x_ct_ciu_ncq_raq: ct_fifo [ctrl_clk]"]
+    n709["x_ct_ciu_ncq_rdq: ct_fifo [ctrl_clk]"]
+    n710["x_ct_ciu_ncq_waq: ct_fifo [ctrl_clk]"]
+    n711["x_ct_ciu_ncq_woq: ct_fifo [ctrl_clk]"]
+    n712["x_ct_ciu_ncq_wdq: ct_fifo [ctrl_clk]"]
+    n713["x_ct_ciu_ncq_wbq: ct_fifo [ctrl_clk]"]
+    n714["x_ct_ebiu_write_channel: ct_ebiu_write_channel [ctrl_clk]"]
+  end
+  subgraph CD_7["🔹 rst_b (negedge)"]
+    n715["x_ct_piu_ar_dfifo: ct_fifo [rst_b]"]
+    n716["x_ct_piu_wd_sid_fifo: ct_fifo [rst_b]"]
+    n717["x_ct_piu_wd_wns_dfifo: ct_fifo [rst_b]"]
+    n718["x_ct_piu_wd_ws_dfifo: ct_fifo [rst_b]"]
+    n719["x_ct_piu_cd_dfifo: ct_fifo [rst_b]"]
+    n720["x_ct_piu_ac_dfifo: ct_fifo [rst_b]"]
+    n721["x_ct_piu_cr_dfifo: ct_fifo [rst_b]"]
+    n722["x_ct_piu_rspq: ct_fifo [rst_b]"]
+    n723["x_ct_piu_cd_sid_fifo: ct_fifo [rst_b]"]
+    n724["x_ct_piu_r_dfifo: ct_fifo [rst_b]"]
+    n725["x_ct_piu_rack_dfifo: ct_fifo [rst_b]"]
+    n726["x_ct_piu_b_dfifo: ct_fifo [rst_b]"]
+    n727["x_ct_piu_back_dfifo: ct_fifo [rst_b]"]
+    n728["x_ct_piu_ar_dfifo: ct_fifo [rst_b]"]
+    n729["x_ct_piu_wd_sid_fifo: ct_fifo [rst_b]"]
+    n730["x_ct_piu_wd_wns_dfifo: ct_fifo [rst_b]"]
+    n731["x_ct_piu_wd_ws_dfifo: ct_fifo [rst_b]"]
+    n732["x_ct_piu_cd_dfifo: ct_fifo [rst_b]"]
+    n733["x_ct_piu_ac_dfifo: ct_fifo [rst_b]"]
+    n734["x_ct_piu_cr_dfifo: ct_fifo [rst_b]"]
+    n735["x_ct_piu_rspq: ct_fifo [rst_b]"]
+    n736["x_ct_piu_cd_sid_fifo: ct_fifo [rst_b]"]
+    n737["x_ct_piu_r_dfifo: ct_fifo [rst_b]"]
+    n738["x_ct_piu_rack_dfifo: ct_fifo [rst_b]"]
+    n739["x_ct_piu_b_dfifo: ct_fifo [rst_b]"]
+    n740["x_ct_piu_back_dfifo: ct_fifo [rst_b]"]
+    n741["x_ct_dvm_op_rid_rfifo: ct_fifo [rst_b]"]
+    n742["x_ct_ciu_ncq_raq: ct_fifo [rst_b]"]
+    n743["x_ct_ciu_ncq_rdq: ct_fifo [rst_b]"]
+    n744["x_ct_ciu_ncq_waq: ct_fifo [rst_b]"]
+    n745["x_ct_ciu_ncq_woq: ct_fifo [rst_b]"]
+    n746["x_ct_ciu_ncq_wdq: ct_fifo [rst_b]"]
+    n747["x_ct_ciu_ncq_wbq: ct_fifo [rst_b]"]
+  end
+  subgraph CD_8["🔹 eventx_clk (posedge)"]
+    n748["x_hpcp_mhpmevent3: ct_hpcp_event [eventx_clk]"]
+    n749["x_hpcp_mhpmevent4: ct_hpcp_event [eventx_clk]"]
+    n750["x_hpcp_mhpmevent5: ct_hpcp_event [eventx_clk]"]
+    n751["x_hpcp_mhpmevent6: ct_hpcp_event [eventx_clk]"]
+    n752["x_hpcp_mhpmevent7: ct_hpcp_event [eventx_clk]"]
+    n753["x_hpcp_mhpmevent8: ct_hpcp_event [eventx_clk]"]
+    n754["x_hpcp_mhpmevent9: ct_hpcp_event [eventx_clk]"]
+    n755["x_hpcp_mhpmevent10: ct_hpcp_event [eventx_clk]"]
+    n756["x_hpcp_mhpmevent11: ct_hpcp_event [eventx_clk]"]
+    n757["x_hpcp_mhpmevent12: ct_hpcp_event [eventx_clk]"]
+    n758["x_hpcp_mhpmevent13: ct_hpcp_event [eventx_clk]"]
+    n759["x_hpcp_mhpmevent14: ct_hpcp_event [eventx_clk]"]
+    n760["x_hpcp_mhpmevent15: ct_hpcp_event [eventx_clk]"]
+    n761["x_hpcp_mhpmevent16: ct_hpcp_event [eventx_clk]"]
+    n762["x_hpcp_mhpmevent17: ct_hpcp_event [eventx_clk]"]
+    n763["x_hpcp_mhpmevent18: ct_hpcp_event [eventx_clk]"]
+    n764["x_hpcp_mhpmevent3: ct_hpcp_event [eventx_clk]"]
+    n765["x_hpcp_mhpmevent4: ct_hpcp_event [eventx_clk]"]
+    n766["x_hpcp_mhpmevent5: ct_hpcp_event [eventx_clk]"]
+    n767["x_hpcp_mhpmevent6: ct_hpcp_event [eventx_clk]"]
+    n768["x_hpcp_mhpmevent7: ct_hpcp_event [eventx_clk]"]
+    n769["x_hpcp_mhpmevent8: ct_hpcp_event [eventx_clk]"]
+    n770["x_hpcp_mhpmevent9: ct_hpcp_event [eventx_clk]"]
+    n771["x_hpcp_mhpmevent10: ct_hpcp_event [eventx_clk]"]
+    n772["x_hpcp_mhpmevent11: ct_hpcp_event [eventx_clk]"]
+    n773["x_hpcp_mhpmevent12: ct_hpcp_event [eventx_clk]"]
+    n774["x_hpcp_mhpmevent13: ct_hpcp_event [eventx_clk]"]
+    n775["x_hpcp_mhpmevent14: ct_hpcp_event [eventx_clk]"]
+    n776["x_hpcp_mhpmevent15: ct_hpcp_event [eventx_clk]"]
+    n777["x_hpcp_mhpmevent16: ct_hpcp_event [eventx_clk]"]
+    n778["x_hpcp_mhpmevent17: ct_hpcp_event [eventx_clk]"]
+    n779["x_hpcp_mhpmevent18: ct_hpcp_event [eventx_clk]"]
+  end
+  subgraph CD_9["🔹 cpuclk (posedge)"]
+    n780["x_ct_pmp_regs: ct_pmp_regs [cpuclk]"]
+    n781["x_ct_had_bkpta: ct_had_bkpt [cpuclk]"]
+    n782["x_ct_had_bkptb: ct_had_bkpt [cpuclk]"]
+    n783["x_ct_had_ctrl: ct_had_ctrl [cpuclk]"]
+    n784["x_ct_had_ddc_ctrl: ct_had_ddc_ctrl [cpuclk]"]
+    n785["x_ct_had_ddc_dp: ct_had_ddc_dp [cpuclk]"]
+    n786["x_ct_had_pcfifo: ct_had_pcfifo [cpuclk]"]
+    n787["x_ct_had_regs: ct_had_regs [cpuclk]"]
+    n788["x_ct_had_trace: ct_had_trace [cpuclk]"]
+    n789["x_ct_had_event: ct_had_event [cpuclk]"]
+    n790["x_ct_had_dbg_info: ct_had_dbg_info [cpuclk]"]
+    n791["x_ct_had_nirv_bkpt: ct_had_nirv_bkpt [cpuclk]"]
+    n792["x_ct_had_private_ir: ct_had_private_ir [cpuclk]"]
+    n793["x_ct_pmp_regs: ct_pmp_regs [cpuclk]"]
+    n794["x_ct_had_bkpta: ct_had_bkpt [cpuclk]"]
+    n795["x_ct_had_bkptb: ct_had_bkpt [cpuclk]"]
+    n796["x_ct_had_ctrl: ct_had_ctrl [cpuclk]"]
+    n797["x_ct_had_ddc_ctrl: ct_had_ddc_ctrl [cpuclk]"]
+    n798["x_ct_had_ddc_dp: ct_had_ddc_dp [cpuclk]"]
+    n799["x_ct_had_pcfifo: ct_had_pcfifo [cpuclk]"]
+    n800["x_ct_had_regs: ct_had_regs [cpuclk]"]
+    n801["x_ct_had_trace: ct_had_trace [cpuclk]"]
+    n802["x_ct_had_event: ct_had_event [cpuclk]"]
+    n803["x_ct_had_dbg_info: ct_had_dbg_info [cpuclk]"]
+    n804["x_ct_had_nirv_bkpt: ct_had_nirv_bkpt [cpuclk]"]
+    n805["x_ct_had_private_ir: ct_had_private_ir [cpuclk]"]
+  end
+  subgraph CD_10["🔹 respqentyclk (posedge)"]
+    n806["x_ct_ciu_ctcq_respq_entry_0: ct_ciu_ctcq_respq_entry [respqentyclk]"]
+    n807["x_ct_ciu_ctcq_respq_entry_1: ct_ciu_ctcq_respq_entry [respqentyclk]"]
+    n808["x_ct_ciu_ctcq_respq_entry_2: ct_ciu_ctcq_respq_entry [respqentyclk]"]
+    n809["x_ct_ciu_ctcq_respq_entry_3: ct_ciu_ctcq_respq_entry [respqentyclk]"]
+    n810["x_ct_ciu_ctcq_respq_entry_4: ct_ciu_ctcq_respq_entry [respqentyclk]"]
+    n811["x_ct_ciu_ctcq_respq_entry_5: ct_ciu_ctcq_respq_entry [respqentyclk]"]
+    n812["x_ct_ciu_ctcq_respq_entry_6: ct_ciu_ctcq_respq_entry [respqentyclk]"]
+    n813["x_ct_ciu_ctcq_respq_entry_7: ct_ciu_ctcq_respq_entry [respqentyclk]"]
+    n814["x_ct_ciu_ctcq_respq_entry_8: ct_ciu_ctcq_respq_entry [respqentyclk]"]
+    n815["x_ct_ciu_ctcq_respq_entry_9: ct_ciu_ctcq_respq_entry [respqentyclk]"]
+    n816["x_ct_ciu_ctcq_respq_entry_10: ct_ciu_ctcq_respq_entry [respqentyclk]"]
+    n817["x_ct_ciu_ctcq_respq_entry_11: ct_ciu_ctcq_respq_entry [respqentyclk]"]
+    n818["x_ct_ciu_ctcq_respq_entry_12: ct_ciu_ctcq_respq_entry [respqentyclk]"]
+    n819["x_ct_ciu_ctcq_respq_entry_13: ct_ciu_ctcq_respq_entry [respqentyclk]"]
+    n820["x_ct_ciu_ctcq_respq_entry_14: ct_ciu_ctcq_respq_entry [respqentyclk]"]
+    n821["x_ct_ciu_ctcq_respq_entry_15: ct_ciu_ctcq_respq_entry [respqentyclk]"]
+  end
+  subgraph CD_11["🔹 forever_cpuclk (posedge)"]
+    n822["x_ct_ciu_top: ct_ciu_top [forever_cpuclk]"]
+    n823["x_ct_l2c_top: ct_l2c_top [forever_cpuclk]"]
+    n824["x_ct_mp_rst_top: ct_mp_rst_top [forever_cpuclk]"]
+    n825["x_ct_mp_clk_top: ct_mp_clk_top [forever_cpuclk]"]
+    n826["x_ct_hpcp_top: ct_hpcp_top [forever_cpuclk]"]
+    n827["x_ct_hpcp_top: ct_hpcp_top [forever_cpuclk]"]
+    n828["x_ct_ciu_regs: ct_ciu_regs [forever_cpuclk]"]
+    n822 --> n828
+    n829["x_ct_ciu_apbif: ct_ciu_apbif [forever_cpuclk]"]
+    n822 --> n829
+    n830["x_ct_had_common_regs: ct_had_common_regs [forever_cpuclk]"]
+    n831["x_ct_piu_other_io_sync: ct_piu_other_io_sync [forever_cpuclk]"]
+    n832["x_ct_piu_other_io_sync: ct_piu_other_io_sync [forever_cpuclk]"]
+    n833["x_ct_ciu_snb_arb: ct_ciu_snb_arb [forever_cpuclk]"]
+    n834["x_ct_ciu_snb_arb: ct_ciu_snb_arb [forever_cpuclk]"]
+    n835["x_ct_ebiu_lowpower: ct_ebiu_lowpower [forever_cpuclk]"]
+  end
+  subgraph CD_12["🔹 forever_coreclk (posedge)"]
+    n836["x_ct_rst_top: ct_rst_top [forever_coreclk]"]
+    n837["x_ct_rst_top: ct_rst_top [forever_coreclk]"]
+    n838["x_ct_biu_snoop_channel: ct_biu_snoop_channel [forever_coreclk]"]
+    n839["x_ct_biu_other_io_sync: ct_biu_other_io_sync [forever_coreclk]"]
+    n840["x_ct_had_ctrl: ct_had_ctrl [forever_coreclk]"]
+    n841["x_ct_had_event: ct_had_event [forever_coreclk]"]
+    n842["x_ct_biu_snoop_channel: ct_biu_snoop_channel [forever_coreclk]"]
+    n843["x_ct_biu_other_io_sync: ct_biu_other_io_sync [forever_coreclk]"]
+    n844["x_ct_had_ctrl: ct_had_ctrl [forever_coreclk]"]
+    n845["x_ct_had_event: ct_had_event [forever_coreclk]"]
+  end
+  subgraph CD_13["🔹 reqqentyclk (posedge)"]
+    n846["x_ct_ciu_ctcq_reqq_entry_0: ct_ciu_ctcq_reqq_entry [reqqentyclk]"]
+    n847["x_ct_ciu_ctcq_reqq_entry_1: ct_ciu_ctcq_reqq_entry [reqqentyclk]"]
+    n848["x_ct_ciu_ctcq_reqq_entry_2: ct_ciu_ctcq_reqq_entry [reqqentyclk]"]
+    n849["x_ct_ciu_ctcq_reqq_entry_3: ct_ciu_ctcq_reqq_entry [reqqentyclk]"]
+    n850["x_ct_ciu_ctcq_reqq_entry_4: ct_ciu_ctcq_reqq_entry [reqqentyclk]"]
+    n851["x_ct_ciu_ctcq_reqq_entry_5: ct_ciu_ctcq_reqq_entry [reqqentyclk]"]
+    n852["x_ct_ciu_ctcq_reqq_entry_6: ct_ciu_ctcq_reqq_entry [reqqentyclk]"]
+    n853["x_ct_ciu_ctcq_reqq_entry_7: ct_ciu_ctcq_reqq_entry [reqqentyclk]"]
+  end
+  subgraph CD_14["🔹 reqqentydpclk (posedge)"]
+    n854["x_ct_ciu_ctcq_reqq_entry_0: ct_ciu_ctcq_reqq_entry [reqqentydpclk]"]
+    n855["x_ct_ciu_ctcq_reqq_entry_1: ct_ciu_ctcq_reqq_entry [reqqentydpclk]"]
+    n856["x_ct_ciu_ctcq_reqq_entry_2: ct_ciu_ctcq_reqq_entry [reqqentydpclk]"]
+    n857["x_ct_ciu_ctcq_reqq_entry_3: ct_ciu_ctcq_reqq_entry [reqqentydpclk]"]
+    n858["x_ct_ciu_ctcq_reqq_entry_4: ct_ciu_ctcq_reqq_entry [reqqentydpclk]"]
+    n859["x_ct_ciu_ctcq_reqq_entry_5: ct_ciu_ctcq_reqq_entry [reqqentydpclk]"]
+    n860["x_ct_ciu_ctcq_reqq_entry_6: ct_ciu_ctcq_reqq_entry [reqqentydpclk]"]
+    n861["x_ct_ciu_ctcq_reqq_entry_7: ct_ciu_ctcq_reqq_entry [reqqentydpclk]"]
+  end
+  subgraph CD_15["🔹 coreclk (posedge)"]
+    n862["x_ct_biu_read_channel: ct_biu_read_channel [coreclk]"]
+    n863["x_ct_biu_write_channel: ct_biu_write_channel [coreclk]"]
+    n864["x_ct_biu_other_io_sync: ct_biu_other_io_sync [coreclk]"]
+    n865["x_ct_biu_read_channel: ct_biu_read_channel [coreclk]"]
+    n866["x_ct_biu_write_channel: ct_biu_write_channel [coreclk]"]
+    n867["x_ct_biu_other_io_sync: ct_biu_other_io_sync [coreclk]"]
+  end
+  subgraph CD_16["🔹 l2c_clk (posedge)"]
+    n868["x_ct_l2c_cmp: ct_l2c_cmp [l2c_clk]"]
+    n869["x_ct_l2c_data: ct_l2c_data [l2c_clk]"]
+    n870["x_ct_l2c_wb: ct_l2c_wb [l2c_clk]"]
+    n871["x_ct_l2c_cmp: ct_l2c_cmp [l2c_clk]"]
+    n872["x_ct_l2c_data: ct_l2c_data [l2c_clk]"]
+    n873["x_ct_l2c_wb: ct_l2c_wb [l2c_clk]"]
+  end
+  subgraph CD_17["🔹 l2reg_oclk (posedge)"]
+    n874["x_ct_biu_other_io_sync: ct_biu_other_io_sync [l2reg_oclk]"]
+    n875["x_ct_biu_other_io_sync: ct_biu_other_io_sync [l2reg_oclk]"]
+    n876["x_ct_piu_other_io_sync: ct_piu_other_io_sync [l2reg_oclk]"]
+    n877["x_ct_piu_other_io_sync: ct_piu_other_io_sync [l2reg_oclk]"]
+  end
+  subgraph CD_18["🔹 plicrst_b (negedge)"]
+    n878["x_plic_top: plic_top [plicrst_b]"]
+    n879["x_plic_ctrl: plic_ctrl [plicrst_b]"]
+    n878 --> n879
+    n880["x_plic_hreg_busif: plic_hreg_busif [plicrst_b]"]
+    n878 --> n880
+    n881["x_plic_kid_busif: plic_kid_busif [plicrst_b]"]
+    n878 --> n881
+  end
+  subgraph CD_19["🔹 clk (posedge)"]
+    n882["x_hart_ict_ready_ff: instance_reg_flog [clk]"]
+    n883["x_hart_ict_rdata_ff: instance_reg_flog [clk]"]
+    n884["x_hart_ict_slverr_ff: instance_reg_flog [clk]"]
+    n885["x_plic_int_sync: sync_level2level [clk]"]
+  end
+  subgraph CD_20["🔹 vb_ctrl_clk (posedge)"]
+    n886["x_ct_ciu_vb: ct_ciu_vb [vb_ctrl_clk]"]
+    n887["x_ct_vb_aw_entry_0: ct_ciu_vb_aw_entry [vb_ctrl_clk]"]
+    n886 --> n887
+    n888["x_ct_vb_aw_entry_1: ct_ciu_vb_aw_entry [vb_ctrl_clk]"]
+    n886 --> n888
+  end
+  subgraph CD_21["🔹 slv_ready_clk (posedge)"]
+    n889["x_csky_apb_1tox_matrix: csky_apb_1tox_matrix [slv_ready_clk]"]
+    n890["x_prio_1tox_matrix: csky_apb_1tox_matrix [slv_ready_clk]"]
+    n891["x_prio_1tox_matrix: csky_apb_1tox_matrix [slv_ready_clk]"]
+  end
+  subgraph CD_22["🔹 prst_b (negedge)"]
+    n892["x_csky_apb_1tox_matrix: csky_apb_1tox_matrix [prst_b]"]
+    n893["x_prio_1tox_matrix: csky_apb_1tox_matrix [prst_b]"]
+    n894["x_prio_1tox_matrix: csky_apb_1tox_matrix [prst_b]"]
+  end
+  subgraph CD_23["🔹 sysio_clk (posedge)"]
+    n895["x_ct_sysio_top: ct_sysio_top [sysio_clk]"]
+    n896["x_ct_sysio_core0: ct_sysio_kid [sysio_clk]"]
+    n895 --> n896
+    n897["x_ct_sysio_core1: ct_sysio_kid [sysio_clk]"]
+    n895 --> n897
+  end
+  subgraph CD_24["🔹 tclk (posedge)"]
+    n898["x_tap2_sm: tap2_sm [tclk]"]
+    n899["x_ct_had_sm: ct_had_sm [tclk]"]
+    n900["x_ct_had_serial: ct_had_serial [tclk]"]
+  end
+  subgraph CD_25["🔹 trst_b (negedge)"]
+    n901["x_tap2_sm: tap2_sm [trst_b]"]
+    n902["x_ct_had_sm: ct_had_sm [trst_b]"]
+    n903["x_ct_had_serial: ct_had_serial [trst_b]"]
+  end
+  subgraph CD_26["🔹 pll_cpu_clk (posedge)"]
+    n904["x_cpu_sub_system_axi: cpu_sub_system_axi [pll_cpu_clk]"]
+    n905["x_ct_mp_clk_top: ct_mp_clk_top [pll_cpu_clk]"]
+  end
+  subgraph CD_27["🔹 iplru_clk (posedge)"]
+    n906["x_ct_mmu_iutlb: ct_mmu_iutlb [iplru_clk]"]
+    n907["x_ct_mmu_iutlb: ct_mmu_iutlb [iplru_clk]"]
+  end
+  subgraph CD_28["🔹 iutlb_clk (posedge)"]
+    n908["x_ct_mmu_iutlb: ct_mmu_iutlb [iutlb_clk]"]
+    n909["x_ct_mmu_iutlb: ct_mmu_iutlb [iutlb_clk]"]
+  end
+  subgraph CD_29["🔹 pabuf_clk (posedge)"]
+    n910["x_ct_mmu_iutlb: ct_mmu_iutlb [pabuf_clk]"]
+    n911["x_ct_mmu_iutlb: ct_mmu_iutlb [pabuf_clk]"]
+  end
+  subgraph CD_30["🔹 dutlb_clk (posedge)"]
+    n912["x_ct_mmu_dutlb: ct_mmu_dutlb [dutlb_clk]"]
+    n913["x_ct_mmu_dutlb: ct_mmu_dutlb [dutlb_clk]"]
+  end
+  subgraph CD_31["🔹 mmu_regs_clk (posedge)"]
+    n914["x_ct_mmu_regs: ct_mmu_regs [mmu_regs_clk]"]
+    n915["x_ct_mmu_regs: ct_mmu_regs [mmu_regs_clk]"]
+  end
+  subgraph CD_32["🔹 tlboper_clk (posedge)"]
+    n916["x_ct_mmu_tlboper: ct_mmu_tlboper [tlboper_clk]"]
+    n917["x_ct_mmu_tlboper: ct_mmu_tlboper [tlboper_clk]"]
+  end
+  subgraph CD_33["🔹 arb_clk (posedge)"]
+    n918["x_ct_mmu_arb: ct_mmu_arb [arb_clk]"]
+    n919["x_ct_mmu_arb: ct_mmu_arb [arb_clk]"]
+  end
+  subgraph CD_34["🔹 jtlb_clk (posedge)"]
+    n920["x_ct_mmu_jtlb: ct_mmu_jtlb [jtlb_clk]"]
+    n921["x_ct_mmu_jtlb: ct_mmu_jtlb [jtlb_clk]"]
+  end
+  subgraph CD_35["🔹 ptw_clk (posedge)"]
+    n922["x_ct_mmu_ptw: ct_mmu_ptw [ptw_clk]"]
+    n923["x_ct_mmu_ptw: ct_mmu_ptw [ptw_clk]"]
+  end
+  subgraph CD_36["🔹 arcpuclk (posedge)"]
+    n924["x_ct_biu_read_channel: ct_biu_read_channel [arcpuclk]"]
+    n925["x_ct_biu_read_channel: ct_biu_read_channel [arcpuclk]"]
+  end
+  subgraph CD_37["🔹 rcpuclk (posedge)"]
+    n926["x_ct_biu_read_channel: ct_biu_read_channel [rcpuclk]"]
+    n927["x_ct_biu_read_channel: ct_biu_read_channel [rcpuclk]"]
+  end
+  subgraph CD_38["🔹 vict_awcpuclk (posedge)"]
+    n928["x_ct_biu_write_channel: ct_biu_write_channel [vict_awcpuclk]"]
+    n929["x_ct_biu_write_channel: ct_biu_write_channel [vict_awcpuclk]"]
+  end
+  subgraph CD_39["🔹 st_awcpuclk (posedge)"]
+    n930["x_ct_biu_write_channel: ct_biu_write_channel [st_awcpuclk]"]
+    n931["x_ct_biu_write_channel: ct_biu_write_channel [st_awcpuclk]"]
+  end
+  subgraph CD_40["🔹 bus_arb_w_fifo_clk (posedge)"]
+    n932["x_ct_biu_write_channel: ct_biu_write_channel [bus_arb_w_fifo_clk]"]
+    n933["x_ct_biu_write_channel: ct_biu_write_channel [bus_arb_w_fifo_clk]"]
+  end
+  subgraph CD_41["🔹 vict_wcpuclk (posedge)"]
+    n934["x_ct_biu_write_channel: ct_biu_write_channel [vict_wcpuclk]"]
+    n935["x_ct_biu_write_channel: ct_biu_write_channel [vict_wcpuclk]"]
+  end
+  subgraph CD_42["🔹 st_wcpuclk (posedge)"]
+    n936["x_ct_biu_write_channel: ct_biu_write_channel [st_wcpuclk]"]
+    n937["x_ct_biu_write_channel: ct_biu_write_channel [st_wcpuclk]"]
+  end
+  subgraph CD_43["🔹 round_wcpuclk (posedge)"]
+    n938["x_ct_biu_write_channel: ct_biu_write_channel [round_wcpuclk]"]
+    n939["x_ct_biu_write_channel: ct_biu_write_channel [round_wcpuclk]"]
+  end
+  subgraph CD_44["🔹 bcpuclk (posedge)"]
+    n940["x_ct_biu_write_channel: ct_biu_write_channel [bcpuclk]"]
+    n941["x_ct_biu_write_channel: ct_biu_write_channel [bcpuclk]"]
+  end
+  subgraph CD_45["🔹 accpuclk (posedge)"]
+    n942["x_ct_biu_snoop_channel: ct_biu_snoop_channel [accpuclk]"]
+    n943["x_ct_biu_snoop_channel: ct_biu_snoop_channel [accpuclk]"]
+  end
+  subgraph CD_46["🔹 crcpuclk (posedge)"]
+    n944["x_ct_biu_snoop_channel: ct_biu_snoop_channel [crcpuclk]"]
+    n945["x_ct_biu_snoop_channel: ct_biu_snoop_channel [crcpuclk]"]
+  end
+  subgraph CD_47["🔹 cdcpuclk (posedge)"]
+    n946["x_ct_biu_snoop_channel: ct_biu_snoop_channel [cdcpuclk]"]
+    n947["x_ct_biu_snoop_channel: ct_biu_snoop_channel [cdcpuclk]"]
+  end
+  subgraph CD_48["🔹 l2reg_iclk (posedge)"]
+    n948["x_ct_biu_other_io_sync: ct_biu_other_io_sync [l2reg_iclk]"]
+    n949["x_ct_biu_other_io_sync: ct_biu_other_io_sync [l2reg_iclk]"]
+  end
+  subgraph CD_49["🔹 corerst_b (negedge)"]
+    n950["x_ct_rst_top: ct_rst_top [corerst_b]"]
+    n951["x_ct_rst_top: ct_rst_top [corerst_b]"]
+  end
+  subgraph CD_50["🔹 aw_ctrl_clk (posedge)"]
+    n952["x_ct_piu0_top: ct_piu_top [aw_ctrl_clk]"]
+    n953["x_ct_piu1_top: ct_piu_top [aw_ctrl_clk]"]
+  end
+  subgraph CD_51["🔹 ws_dp_clk (posedge)"]
+    n954["x_ct_piu0_top: ct_piu_top [ws_dp_clk]"]
+    n955["x_ct_piu1_top: ct_piu_top [ws_dp_clk]"]
+  end
+  subgraph CD_52["🔹 wns_dp_clk (posedge)"]
+    n956["x_ct_piu0_top: ct_piu_top [wns_dp_clk]"]
+    n957["x_ct_piu1_top: ct_piu_top [wns_dp_clk]"]
+  end
+  subgraph CD_53["🔹 ac_prio_clk (posedge)"]
+    n958["x_ct_piu0_top: ct_piu_top [ac_prio_clk]"]
+    n959["x_ct_piu1_top: ct_piu_top [ac_prio_clk]"]
+  end
+  subgraph CD_54["🔹 cd_sid_fifo_ctrl_clk (posedge)"]
+    n960["x_ct_piu0_top: ct_piu_top [cd_sid_fifo_ctrl_clk]"]
+    n961["x_ct_piu1_top: ct_piu_top [cd_sid_fifo_ctrl_clk]"]
+  end
+  subgraph CD_55["🔹 pkb_ctrl_clk (posedge)"]
+    n962["x_ct_piu0_top: ct_piu_top [pkb_ctrl_clk]"]
+    n963["x_ct_piu1_top: ct_piu_top [pkb_ctrl_clk]"]
+  end
+  subgraph CD_56["🔹 pkb_dp_clk (posedge)"]
+    n964["x_ct_piu0_top: ct_piu_top [pkb_dp_clk]"]
+    n965["x_ct_piu1_top: ct_piu_top [pkb_dp_clk]"]
+  end
+  subgraph CD_57["🔹 pkb_data0_clk (posedge)"]
+    n966["x_ct_piu0_top: ct_piu_top [pkb_data0_clk]"]
+    n967["x_ct_piu1_top: ct_piu_top [pkb_data0_clk]"]
+  end
+  subgraph CD_58["🔹 pkb_data1_clk (posedge)"]
+    n968["x_ct_piu0_top: ct_piu_top [pkb_data1_clk]"]
+    n969["x_ct_piu1_top: ct_piu_top [pkb_data1_clk]"]
+  end
+  subgraph CD_59["🔹 pkb_data2_clk (posedge)"]
+    n970["x_ct_piu0_top: ct_piu_top [pkb_data2_clk]"]
+    n971["x_ct_piu1_top: ct_piu_top [pkb_data2_clk]"]
+  end
+  subgraph CD_60["🔹 pkb_data3_clk (posedge)"]
+    n972["x_ct_piu0_top: ct_piu_top [pkb_data3_clk]"]
+    n973["x_ct_piu1_top: ct_piu_top [pkb_data3_clk]"]
+  end
+  subgraph CD_61["🔹 bar_ctrl_clk (posedge)"]
+    n974["x_ct_piu0_top: ct_piu_top [bar_ctrl_clk]"]
+    n975["x_ct_piu1_top: ct_piu_top [bar_ctrl_clk]"]
+  end
+  subgraph CD_62["🔹 bar_dp_clk (posedge)"]
+    n976["x_ct_piu0_top: ct_piu_top [bar_dp_clk]"]
+    n977["x_ct_piu1_top: ct_piu_top [bar_dp_clk]"]
+  end
+  subgraph CD_63["🔹 upkb_clk (posedge)"]
+    n978["x_ct_piu0_top: ct_piu_top [upkb_clk]"]
+    n979["x_ct_piu1_top: ct_piu_top [upkb_clk]"]
+  end
+  subgraph CD_64["🔹 upkb_cont_clk (posedge)"]
+    n980["x_ct_piu0_top: ct_piu_top [upkb_cont_clk]"]
+    n981["x_ct_piu1_top: ct_piu_top [upkb_cont_clk]"]
+  end
+  subgraph CD_65["🔹 ciu_top_clk (posedge)"]
+    n982["x_ct_piu0_top: ct_piu_top [ciu_top_clk]"]
+    n983["x_ct_piu1_top: ct_piu_top [ciu_top_clk]"]
+  end
+  subgraph CD_66["🔹 piu_dummy_clk (posedge)"]
+    n984["x_ct_piu2_top_dummy: ct_piu_top_dummy [piu_dummy_clk]"]
+    n985["x_ct_piu3_top_dummy: ct_piu_top_dummy [piu_dummy_clk]"]
+  end
+  subgraph CD_67["🔹 wcd_clk (posedge)"]
+    n986["x_ct_ciu_snb_arb: ct_ciu_snb_arb [wcd_clk]"]
+    n987["x_ct_ciu_snb_arb: ct_ciu_snb_arb [wcd_clk]"]
+  end
+  subgraph CD_68["🔹 wcd_dp_clk (posedge)"]
+    n988["x_ct_ciu_snb_arb: ct_ciu_snb_arb [wcd_dp_clk]"]
+    n989["x_ct_ciu_snb_arb: ct_ciu_snb_arb [wcd_dp_clk]"]
+  end
+  subgraph CD_69["🔹 ac_ctrl_clk (posedge)"]
+    n990["x_ct_ciu_snb_arb: ct_ciu_snb_arb [ac_ctrl_clk]"]
+    n991["x_ct_ciu_snb_arb: ct_ciu_snb_arb [ac_ctrl_clk]"]
+  end
+  subgraph CD_70["🔹 piu0_ac_buf_clk (posedge)"]
+    n992["x_ct_ciu_snb_arb: ct_ciu_snb_arb [piu0_ac_buf_clk]"]
+    n993["x_ct_ciu_snb_arb: ct_ciu_snb_arb [piu0_ac_buf_clk]"]
+  end
+  subgraph CD_71["🔹 piu1_ac_buf_clk (posedge)"]
+    n994["x_ct_ciu_snb_arb: ct_ciu_snb_arb [piu1_ac_buf_clk]"]
+    n995["x_ct_ciu_snb_arb: ct_ciu_snb_arb [piu1_ac_buf_clk]"]
+  end
+  subgraph CD_72["🔹 piu2_ac_buf_clk (posedge)"]
+    n996["x_ct_ciu_snb_arb: ct_ciu_snb_arb [piu2_ac_buf_clk]"]
+    n997["x_ct_ciu_snb_arb: ct_ciu_snb_arb [piu2_ac_buf_clk]"]
+  end
+  subgraph CD_73["🔹 piu3_ac_buf_clk (posedge)"]
+    n998["x_ct_ciu_snb_arb: ct_ciu_snb_arb [piu3_ac_buf_clk]"]
+    n999["x_ct_ciu_snb_arb: ct_ciu_snb_arb [piu3_ac_buf_clk]"]
+  end
+  subgraph CD_74["🔹 l2c_pop_clk (posedge)"]
+    n1000["x_ct_ciu_snb_arb: ct_ciu_snb_arb [l2c_pop_clk]"]
+    n1001["x_ct_ciu_snb_arb: ct_ciu_snb_arb [l2c_pop_clk]"]
+  end
+  subgraph CD_75["🔹 l2c_buf_clk (posedge)"]
+    n1002["x_ct_ciu_snb_arb: ct_ciu_snb_arb [l2c_buf_clk]"]
+    n1003["x_ct_ciu_snb_arb: ct_ciu_snb_arb [l2c_buf_clk]"]
+  end
+  subgraph CD_76["🔹 ebiu_aw_buf_clk (posedge)"]
+    n1004["x_ct_ciu_snb_arb: ct_ciu_snb_arb [ebiu_aw_buf_clk]"]
+    n1005["x_ct_ciu_snb_arb: ct_ciu_snb_arb [ebiu_aw_buf_clk]"]
+  end
+  subgraph CD_77["🔹 ebiu_w_buf_clk (posedge)"]
+    n1006["x_ct_ciu_snb_arb: ct_ciu_snb_arb [ebiu_w_buf_clk]"]
+    n1007["x_ct_ciu_snb_arb: ct_ciu_snb_arb [ebiu_w_buf_clk]"]
+  end
+  subgraph CD_78["🔹 ebiu_ar_buf_clk (posedge)"]
+    n1008["x_ct_ciu_snb_arb: ct_ciu_snb_arb [ebiu_ar_buf_clk]"]
+    n1009["x_ct_ciu_snb_arb: ct_ciu_snb_arb [ebiu_ar_buf_clk]"]
+  end
+  subgraph CD_79["🔹 rresp_buf_clk (posedge)"]
+    n1010["x_ct_ciu_snb_arb: ct_ciu_snb_arb [rresp_buf_clk]"]
+    n1011["x_ct_ciu_snb_arb: ct_ciu_snb_arb [rresp_buf_clk]"]
+  end
+  subgraph CD_80["🔹 vb_entry_awclk (posedge)"]
+    n1012["x_ct_vb_aw_entry_0: ct_ciu_vb_aw_entry [vb_entry_awclk]"]
+    n1013["x_ct_vb_aw_entry_1: ct_ciu_vb_aw_entry [vb_entry_awclk]"]
+  end
+  subgraph CD_81["🔹 vb_entry_wclk (posedge)"]
+    n1014["x_ct_vb_aw_entry_0: ct_ciu_vb_aw_entry [vb_entry_wclk]"]
+    n1015["x_ct_vb_aw_entry_1: ct_ciu_vb_aw_entry [vb_entry_wclk]"]
+  end
+  subgraph CD_82["🔹 gm_ctrl_clk (posedge)"]
+    n1016["x_ct_ciu_ncq_gm_core0: ct_ciu_ncq_gm [gm_ctrl_clk]"]
+    n1017["x_ct_ciu_ncq_gm_core1: ct_ciu_ncq_gm [gm_ctrl_clk]"]
+  end
+  subgraph CD_83["🔹 gm_clk (posedge)"]
+    n1018["x_ct_ciu_ncq_gm_core0: ct_ciu_ncq_gm [gm_clk]"]
+    n1019["x_ct_ciu_ncq_gm_core1: ct_ciu_ncq_gm [gm_clk]"]
+  end
+  subgraph CD_84["🔹 smpr_clk (posedge)"]
+    n1020["x_ct_ciu_regs_kid_core0: ct_ciu_regs_kid [smpr_clk]"]
+    n1021["x_ct_ciu_regs_kid_core1: ct_ciu_regs_kid [smpr_clk]"]
+  end
+  subgraph CD_85["🔹 x_fifo_rst_b (negedge)"]
+    n1022["x_ct_ciu_regs_kid_core0: ct_ciu_regs_kid [x_fifo_rst_b]"]
+    n1023["x_ct_ciu_regs_kid_core1: ct_ciu_regs_kid [x_fifo_rst_b]"]
+  end
+  subgraph CD_86["🔹 l2ra_clk (posedge)"]
+    n1024["x_ct_ciu_regs_kid_core0: ct_ciu_regs_kid [l2ra_clk]"]
+    n1025["x_ct_ciu_regs_kid_core1: ct_ciu_regs_kid [l2ra_clk]"]
+  end
+  subgraph CD_87["🔹 l2rm_clk (posedge)"]
+    n1026["x_ct_ciu_regs_kid_core0: ct_ciu_regs_kid [l2rm_clk]"]
+    n1027["x_ct_ciu_regs_kid_core1: ct_ciu_regs_kid [l2rm_clk]"]
+  end
+  subgraph CD_88["🔹 l2wa_clk (posedge)"]
+    n1028["x_ct_ciu_regs_kid_core0: ct_ciu_regs_kid [l2wa_clk]"]
+    n1029["x_ct_ciu_regs_kid_core1: ct_ciu_regs_kid [l2wa_clk]"]
+  end
+  subgraph CD_89["🔹 l2wm_clk (posedge)"]
+    n1030["x_ct_ciu_regs_kid_core0: ct_ciu_regs_kid [l2wm_clk]"]
+    n1031["x_ct_ciu_regs_kid_core1: ct_ciu_regs_kid [l2wm_clk]"]
+  end
+  subgraph CD_90["🔹 l2of_clk (posedge)"]
+    n1032["x_ct_ciu_regs_kid_core0: ct_ciu_regs_kid [l2of_clk]"]
+    n1033["x_ct_ciu_regs_kid_core1: ct_ciu_regs_kid [l2of_clk]"]
+  end
+  subgraph CD_91["🔹 tag_clk (posedge)"]
+    n1034["x_ct_l2c_tag: ct_l2c_tag [tag_clk]"]
+    n1035["x_ct_l2c_tag: ct_l2c_tag [tag_clk]"]
+  end
+  subgraph CD_92["🔹 tag_index_flop_clk (posedge)"]
+    n1036["x_ct_l2c_tag: ct_l2c_tag [tag_index_flop_clk]"]
+    n1037["x_ct_l2c_tag: ct_l2c_tag [tag_index_flop_clk]"]
+  end
+  subgraph CD_93["🔹 tag_flop_clk (posedge)"]
+    n1038["x_ct_l2c_tag: ct_l2c_tag [tag_flop_clk]"]
+    n1039["x_ct_l2c_tag: ct_l2c_tag [tag_flop_clk]"]
+  end
+  subgraph CD_94["🔹 status_flop_clk (posedge)"]
+    n1040["x_ct_l2c_tag: ct_l2c_tag [status_flop_clk]"]
+    n1041["x_ct_l2c_tag: ct_l2c_tag [status_flop_clk]"]
+  end
+  subgraph CD_95["🔹 l2c_tag_dp_clk (posedge)"]
+    n1042["x_ct_l2c_tag: ct_l2c_tag [l2c_tag_dp_clk]"]
+    n1043["x_ct_l2c_tag: ct_l2c_tag [l2c_tag_dp_clk]"]
+  end
+  subgraph CD_96["🔹 tag_stage_flop_clk (posedge)"]
+    n1044["x_ct_l2c_tag: ct_l2c_tag [tag_stage_flop_clk]"]
+    n1045["x_ct_l2c_tag: ct_l2c_tag [tag_stage_flop_clk]"]
+  end
+  subgraph CD_97["🔹 cmp_info_clk (posedge)"]
+    n1046["x_ct_l2c_tag: ct_l2c_tag [cmp_info_clk]"]
+    n1047["x_ct_l2c_tag: ct_l2c_tag [cmp_info_clk]"]
+  end
+  subgraph CD_98["🔹 cmp_dp_clk (posedge)"]
+    n1048["x_ct_l2c_cmp: ct_l2c_cmp [cmp_dp_clk]"]
+    n1049["x_ct_l2c_cmp: ct_l2c_cmp [cmp_dp_clk]"]
+  end
+  subgraph CD_99["🔹 data_cen_clk (posedge)"]
+    n1050["x_ct_l2c_data: ct_l2c_data [data_cen_clk]"]
+    n1051["x_ct_l2c_data: ct_l2c_data [data_cen_clk]"]
+  end
+  subgraph CD_100["🔹 data_flop_clk (posedge)"]
+    n1052["x_ct_l2c_data: ct_l2c_data [data_flop_clk]"]
+    n1053["x_ct_l2c_data: ct_l2c_data [data_flop_clk]"]
+  end
+  subgraph CD_101["🔹 data_dp_clk (posedge)"]
+    n1054["x_ct_l2c_data: ct_l2c_data [data_dp_clk]"]
+    n1055["x_ct_l2c_data: ct_l2c_data [data_dp_clk]"]
+  end
+  subgraph CD_102["🔹 data_cnt_clk (posedge)"]
+    n1056["x_ct_l2c_data: ct_l2c_data [data_cnt_clk]"]
+    n1057["x_ct_l2c_data: ct_l2c_data [data_cnt_clk]"]
+  end
+  subgraph CD_103["🔹 data_dout_clk (posedge)"]
+    n1058["x_ct_l2c_data: ct_l2c_data [data_dout_clk]"]
+    n1059["x_ct_l2c_data: ct_l2c_data [data_dout_clk]"]
+  end
+  subgraph CD_104["🔹 wb_dp_clk (posedge)"]
+    n1060["x_ct_l2c_wb: ct_l2c_wb [wb_dp_clk]"]
+    n1061["x_ct_l2c_wb: ct_l2c_wb [wb_dp_clk]"]
+  end
+  subgraph CD_105["🔹 icc_dp_clk (posedge)"]
+    n1062["x_ct_l2c_icc: ct_l2c_icc [icc_dp_clk]"]
+    n1063["x_ct_l2c_icc: ct_l2c_icc [icc_dp_clk]"]
+  end
+  subgraph CD_106["🔹 icc_fsm_clk (posedge)"]
+    n1064["x_ct_l2c_icc: ct_l2c_icc [icc_fsm_clk]"]
+    n1065["x_ct_l2c_icc: ct_l2c_icc [icc_fsm_clk]"]
+  end
+  subgraph CD_107["🔹 icc_status_clk (posedge)"]
+    n1066["x_ct_l2c_icc: ct_l2c_icc [icc_status_clk]"]
+    n1067["x_ct_l2c_icc: ct_l2c_icc [icc_status_clk]"]
+  end
+  subgraph CD_108["🔹 icc_index_clk (posedge)"]
+    n1068["x_ct_l2c_icc: ct_l2c_icc [icc_index_clk]"]
+    n1069["x_ct_l2c_icc: ct_l2c_icc [icc_index_clk]"]
+  end
+  subgraph CD_109["🔹 rdl_clk (posedge)"]
+    n1070["x_ct_l2c_icc: ct_l2c_icc [rdl_clk]"]
+    n1071["x_ct_l2c_icc: ct_l2c_icc [rdl_clk]"]
+  end
+  subgraph CD_110["🔹 dca_data_clk (posedge)"]
+    n1072["x_ct_l2c_icc: ct_l2c_icc [dca_data_clk]"]
+    n1073["x_ct_l2c_icc: ct_l2c_icc [dca_data_clk]"]
+  end
+  subgraph CD_111["🔹 kid_int_clk (posedge)"]
+    n1074["x_ct_sysio_core0: ct_sysio_kid [kid_int_clk]"]
+    n1075["x_ct_sysio_core1: ct_sysio_kid [kid_int_clk]"]
+  end
+  subgraph CD_112["🔹 clk2 (posedge)"]
+    n1076["x_jtag2pmu_sync: px_had_sync [clk2]"]
+    n1077["x_ct_had_sync_ir: ct_had_sync_3flop [clk2]"]
+  end
+  subgraph CD_113["🔹 clk1 (posedge)"]
+    n1078["x_jtag2pmu_sync: px_had_sync [clk1]"]
+    n1079["x_ct_had_sync_ir: ct_had_sync_3flop [clk1]"]
+  end
+  subgraph CD_114["🔹 rst1_b (negedge)"]
+    n1080["x_jtag2pmu_sync: px_had_sync [rst1_b]"]
+    n1081["x_ct_had_sync_ir: ct_had_sync_3flop [rst1_b]"]
+  end
+  subgraph CD_115["🔹 event_clk (posedge)"]
+    n1082["x_ct_had_etm_if_core0: ct_had_etm_if [event_clk]"]
+    n1083["x_ct_had_etm_if_core1: ct_had_etm_if [event_clk]"]
+  end
+  subgraph CD_116["🔹 fast_clk (posedge)"]
+    n1084["x_cpu2pmu_sync1: sync [fast_clk]"]
+    n1085["x_cpu2pmu_sync2: sync [fast_clk]"]
+  end
+  subgraph CD_117["🔹 slow_clk (posedge)"]
+    n1086["x_cpu2pmu_sync1: sync [slow_clk]"]
+    n1087["x_cpu2pmu_sync2: sync [slow_clk]"]
+  end
+  subgraph CD_118["🔹 apb_clk (posedge)"]
+    n1088["x_rmu_top: ct_rmu_top_dummy [apb_clk]"]
+  end
+  subgraph CD_119["🔹 apbrst_b (negedge)"]
+    n1089["x_rmu_top: ct_rmu_top_dummy [apbrst_b]"]
+  end
+  subgraph CD_120["🔹 ctcq_fsm_clk (posedge)"]
+    n1090["x_ct_ciu_l2cif: ct_ciu_l2cif [ctcq_fsm_clk]"]
+  end
+  subgraph CD_121["🔹 dca_clk (posedge)"]
+    n1091["x_ct_ciu_l2cif: ct_ciu_l2cif [dca_clk]"]
+  end
+  subgraph CD_122["🔹 dca_dp_clk (posedge)"]
+    n1092["x_ct_ciu_l2cif: ct_ciu_l2cif [dca_dp_clk]"]
+  end
+  subgraph CD_123["🔹 ctcq_clk (posedge)"]
+    n1093["x_ct_ciu_ctcq: ct_ciu_ctcq [ctcq_clk]"]
+  end
+  subgraph CD_124["🔹 ctcq_create_clk (posedge)"]
+    n1094["x_ct_ciu_ctcq: ct_ciu_ctcq [ctcq_create_clk]"]
+  end
+  subgraph CD_125["🔹 resp_clk (posedge)"]
+    n1095["x_ct_ciu_ctcq: ct_ciu_ctcq [resp_clk]"]
+  end
+  subgraph CD_126["🔹 reqq_pop_clk (posedge)"]
+    n1096["x_ct_ciu_ctcq: ct_ciu_ctcq [reqq_pop_clk]"]
+  end
+  subgraph CD_127["🔹 arbuf_clk (posedge)"]
+    n1097["x_ct_ciu_ctcq: ct_ciu_ctcq [arbuf_clk]"]
+  end
+  subgraph CD_128["🔹 ncqrdclk (posedge)"]
+    n1098["x_ct_ciu_ncq: ct_ciu_ncq [ncqrdclk]"]
+  end
+  subgraph CD_129["🔹 ncqwtclk (posedge)"]
+    n1099["x_ct_ciu_ncq: ct_ciu_ncq [ncqwtclk]"]
+  end
+  subgraph CD_130["🔹 dsqclk (posedge)"]
+    n1100["x_ct_ciu_ncq: ct_ciu_ncq [dsqclk]"]
+  end
+  subgraph CD_131["🔹 ncqbarclk (posedge)"]
+    n1101["x_ct_ciu_ncq: ct_ciu_ncq [ncqbarclk]"]
+  end
+  subgraph CD_132["🔹 ncq_barcnt_clk (posedge)"]
+    n1102["x_ct_ciu_ncq: ct_ciu_ncq [ncq_barcnt_clk]"]
+  end
+  subgraph CD_133["🔹 arctrl_clk (posedge)"]
+    n1103["x_ct_ebiu_read_channel: ct_ebiu_read_channel [arctrl_clk]"]
+  end
+  subgraph CD_134["🔹 ardp_clk (posedge)"]
+    n1104["x_ct_ebiu_read_channel: ct_ebiu_read_channel [ardp_clk]"]
+  end
+  subgraph CD_135["🔹 awdp_clk (posedge)"]
+    n1105["x_ct_ebiu_write_channel: ct_ebiu_write_channel [awdp_clk]"]
+  end
+  subgraph CD_136["🔹 wdp_clk (posedge)"]
+    n1106["x_ct_ebiu_write_channel: ct_ebiu_write_channel [wdp_clk]"]
+  end
+  subgraph CD_137["🔹 vb_b_clk (posedge)"]
+    n1107["x_ct_ebiu_write_channel: ct_ebiu_write_channel [vb_b_clk]"]
+  end
+  subgraph CD_138["🔹 ncq_so_clk (posedge)"]
+    n1108["x_ct_ebiu_write_channel: ct_ebiu_write_channel [ncq_so_clk]"]
+  end
+  subgraph CD_139["🔹 ncq_wo_clk (posedge)"]
+    n1109["x_ct_ebiu_write_channel: ct_ebiu_write_channel [ncq_wo_clk]"]
+  end
+  subgraph CD_140["🔹 rdata_clk (posedge)"]
+    n1110["x_ct_ciu_regs: ct_ciu_regs [rdata_clk]"]
+  end
+  subgraph CD_141["🔹 chr2_clk (posedge)"]
+    n1111["x_ct_ciu_regs: ct_ciu_regs [chr2_clk]"]
+  end
+  subgraph CD_142["🔹 ccr2_clk (posedge)"]
+    n1112["x_ct_ciu_regs: ct_ciu_regs [ccr2_clk]"]
+  end
+  subgraph CD_143["🔹 apbif_clk (posedge)"]
+    n1113["x_ct_ciu_apbif: ct_ciu_apbif [apbif_clk]"]
+  end
+  subgraph CD_144["🔹 l2c_pref_clk (posedge)"]
+    n1114["x_ct_l2c_prefetch: ct_l2c_prefetch [l2c_pref_clk]"]
+  end
+  subgraph CD_145["🔹 clint_clk (posedge)"]
+    n1115["x_ct_clint_func: ct_clint_func [clint_clk]"]
+  end
+  subgraph CD_146["🔹 mtime_clk (posedge)"]
+    n1116["x_ct_clint_func: ct_clint_func [mtime_clk]"]
+  end
+  subgraph CD_147["🔹 plic_core_sec_clk (posedge)"]
+    n1117["x_plic_top: plic_top [plic_core_sec_clk]"]
+  end
+  subgraph CD_148["🔹 plic_ctrl_clk (posedge)"]
+    n1118["x_plic_ctrl: plic_ctrl [plic_ctrl_clk]"]
+  end
+  subgraph CD_149["🔹 plic_clk (posedge)"]
+    n1119["x_plic_hreg_busif: plic_hreg_busif [plic_clk]"]
+  end
+  subgraph CD_150["🔹 prio_ready_clk[PRIO_SLV_NUM (posedge)"]
+    n1120["x_plic_kid_busif: plic_kid_busif [prio_ready_clk[PRIO_SLV_NUM]"]
+  end
+  subgraph CD_151["🔹 ip_ready_clk (posedge)"]
+    n1121["x_plic_kid_busif: plic_kid_busif [ip_ready_clk]"]
+  end
+  subgraph CD_152["🔹 async_cpurst_b (negedge)"]
+    n1122["x_ct_mp_rst_top: ct_mp_rst_top [async_cpurst_b]"]
+  end
+  subgraph CD_153["🔹 forever_jtgclk (posedge)"]
+    n1123["x_ct_mp_rst_top: ct_mp_rst_top [forever_jtgclk]"]
+  end
+  subgraph CD_154["🔹 phl_rst_b (negedge)"]
+    n1124["x_ct_mp_clk_top: ct_mp_clk_top [phl_rst_b]"]
+  end
+  subgraph CD_155["🔹 bist_clk (posedge)"]
+    n1125["x_ct_mp_clk_top: ct_mp_clk_top [bist_clk]"]
+  end
+  subgraph CD_156["🔹 sm_clk (posedge)"]
+    n1126["x_ct_had_sm: ct_had_sm [sm_clk]"]
+  end
+  subgraph CD_157["🔹 ir_clk (posedge)"]
+    n1127["x_ct_had_ir: ct_had_ir [ir_clk]"]
+  end
+  subgraph CD_158["🔹 core0_rst_b (negedge)"]
+    n1128["x_ct_had_common_regs: ct_had_common_regs [core0_rst_b]"]
+  end
+  subgraph CD_159["🔹 core1_rst_b (negedge)"]
+    n1129["x_ct_had_common_regs: ct_had_common_regs [core1_rst_b]"]
+  end
+  subgraph CD_160["🔹 dbginfo_clk (posedge)"]
+    n1130["x_ct_had_common_dbg_info: ct_had_common_dbg_info [dbginfo_clk]"]
+  end
+  subgraph CD_161["🔹 hclk (posedge)"]
+    n1131["x_mem_ctrl: mem_ctrl [hclk]"]
+  end
+  subgraph CD_162["🔹 hrst_b (negedge)"]
+    n1132["x_mem_ctrl: mem_ctrl [hrst_b]"]
+  end
+  subgraph CD_163["🔹 ram_clk[0] (posedge)"]
+    n1133["ram0: ram [PortAClk]"]
+  end
+  subgraph CD_164["🔹 ram_clk[1] (posedge)"]
+    n1134["ram1: ram [PortAClk]"]
+  end
+  subgraph CD_165["🔹 ram_clk[2] (posedge)"]
+    n1135["ram2: ram [PortAClk]"]
+  end
+  subgraph CD_166["🔹 ram_clk[3] (posedge)"]
+    n1136["ram3: ram [PortAClk]"]
+  end
+  subgraph CD_167["🔹 ram_clk[4] (posedge)"]
+    n1137["ram4: ram [PortAClk]"]
+  end
+  subgraph CD_168["🔹 ram_clk[5] (posedge)"]
+    n1138["ram5: ram [PortAClk]"]
+  end
+  subgraph CD_169["🔹 ram_clk[6] (posedge)"]
+    n1139["ram6: ram [PortAClk]"]
+  end
+  subgraph CD_170["🔹 ram_clk[7] (posedge)"]
+    n1140["ram7: ram [PortAClk]"]
+  end
+  subgraph CD_171["🔹 ram_clk[8] (posedge)"]
+    n1141["ram8: ram [PortAClk]"]
+  end
+  subgraph CD_172["🔹 ram_clk[9] (posedge)"]
+    n1142["ram9: ram [PortAClk]"]
+  end
+  subgraph CD_173["🔹 ram_clk[10] (posedge)"]
+    n1143["ram10: ram [PortAClk]"]
+  end
+  subgraph CD_174["🔹 ram_clk[11] (posedge)"]
+    n1144["ram11: ram [PortAClk]"]
+  end
+  subgraph CD_175["🔹 ram_clk[12] (posedge)"]
+    n1145["ram12: ram [PortAClk]"]
+  end
+  subgraph CD_176["🔹 ram_clk[13] (posedge)"]
+    n1146["ram13: ram [PortAClk]"]
+  end
+  subgraph CD_177["🔹 ram_clk[14] (posedge)"]
+    n1147["ram14: ram [PortAClk]"]
+  end
+  subgraph CD_178["🔹 ram_clk[15] (posedge)"]
+    n1148["ram15: ram [PortAClk]"]
+  end
+  subgraph CD_179["🔹 i_pad_clk (posedge)"]
+    n1149["x_clk_gen: clk_gen [i_pad_clk]"]
+  end

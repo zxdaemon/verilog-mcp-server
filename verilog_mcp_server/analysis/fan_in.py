@@ -71,7 +71,6 @@ class DataflowTracer:
 
     def __init__(self, index_store: IndexStore):
         self._index_store = index_store
-        self._visited: set[tuple[str, str, str]] = set()
 
     def trace_signal(
         self, signal_name: str, start_module: str,
@@ -82,7 +81,7 @@ class DataflowTracer:
         if not mod:
             raise ValueError(f"模块 '{start_module}' 不存在于索引中")
 
-        self._visited.clear()
+        visited: set[tuple[str, str, str]] = set()
 
         root = TraceNode(
             signal_name=signal_name, module_name=start_module,
@@ -92,9 +91,10 @@ class DataflowTracer:
         )
 
         if direction == "fan_in":
-            self._trace_fan_in(root, signal_name, start_module, start_module, 1, max_depth)
+            self._trace_fan_in(root, signal_name, start_module, start_module, 1, max_depth, visited)
         elif direction == "fan_out":
-            self._trace_fan_out(root, signal_name, start_module, start_module, 1, max_depth)
+            visited_fanout: set[tuple[str, str, str]] = set()
+            self._trace_fan_out(root, signal_name, start_module, start_module, 1, max_depth, visited_fanout)
         else:
             raise ValueError(f"无效的方向: '{direction}'，应为 'fan_in' 或 'fan_out'")
 
@@ -114,15 +114,193 @@ class DataflowTracer:
         direction = "fan_in" if port.direction == "output" else "fan_out"
         return self.trace_signal(port_name, module_name, direction)
 
+    def trace_port_dataflow(
+        self,
+        module_name: str,
+        port_name: str,
+        direction: str = "both",
+        max_depth: int = 5,
+    ) -> TraceResult:
+        """端口数据流跨层级穿透追踪
+
+        Args:
+            module_name: 模块名称
+            port_name: 端口名称
+            direction: "fan_in" — 向上追踪驱动源（input 端口）;
+                       "fan_out" — 向上追踪负载（output 端口）;
+                       "both" — 双向追踪
+            max_depth: 最大穿透深度
+
+        Returns:
+            TraceResult: 追踪结果树
+        """
+        mod = self._index_store.get_module(module_name)
+        if not mod:
+            raise ValueError(f"模块 '{module_name}' 不存在")
+
+        port = self._get_port(mod, port_name)
+        if not port:
+            raise ValueError(f"模块 '{module_name}' 中没有端口 '{port_name}'")
+
+        root = TraceNode(
+            signal_name=port_name,
+            module_name=module_name,
+            instance_path=module_name,
+            role="port",
+            description=f"{port.direction} 端口 {port_name} ({port.var_type}{f' {port.width_range}' if port.width_range else ''})",
+            file_path=mod.file_path,
+            depth=0,
+        )
+
+        visited: set[tuple[str, str, str]] = set()
+
+        if direction in ("fan_in", "both"):
+            if port.direction in ("input", "inout"):
+                self._trace_port_fan_in_upward(
+                    root, port_name, module_name, module_name,
+                    1, max_depth, visited,
+                )
+            elif port.direction == "output":
+                # For output: trace internal drivers first
+                self._trace_fan_in(root, port_name, module_name, module_name, 1, max_depth, visited)
+
+        if direction in ("fan_out", "both"):
+            if port.direction in ("output", "inout"):
+                self._trace_port_fan_out_upward(
+                    root, port_name, module_name, module_name,
+                    1, max_depth, visited,
+                )
+            elif port.direction == "input":
+                # For input: trace internal loads
+                self._trace_fan_out(root, port_name, module_name, module_name, 1, max_depth, visited)
+
+        total_nodes = _count_nodes(root)
+        md = _max_depth_of(root)
+        return TraceResult(
+            root=root, nodes_count=total_nodes, max_depth=md,
+            truncated=md >= max_depth,
+        )
+
+    def _trace_port_fan_in_upward(
+        self, parent, port_name, module_name, instance_path,
+        depth, max_depth, visited,
+    ):
+        """input 端口向上追踪：穿过父模块例化，找到实际信号，再 trace fan_in"""
+        if depth > max_depth:
+            return
+        visit_key = (module_name, port_name, "port_fan_in_up")
+        if visit_key in visited:
+            return
+        visited.add(visit_key)
+
+        mod_name_lower = module_name.lower()
+        found_parent = False
+
+        for parent_mod in self._index_store.get_all_modules():
+            for inst in parent_mod.instances:
+                if inst.module_type.lower() != mod_name_lower:
+                    continue
+                actual_signal = inst.port_connections.get(port_name)
+                if actual_signal is None:
+                    # Try positional port mapping
+                    child_mod = self._index_store.get_module(inst.module_type)
+                    if child_mod:
+                        port_idx = -1
+                        for i, p in enumerate(child_mod.ports):
+                            if p.name == port_name:
+                                port_idx = i
+                                break
+                        if port_idx >= 0:
+                            ports_list = list(inst.port_connections.items())
+                            if port_idx < len(ports_list):
+                                actual_signal = ports_list[port_idx][1]
+
+                if actual_signal:
+                    found_parent = True
+                    child = TraceNode(
+                        signal_name=actual_signal,
+                        module_name=parent_mod.name,
+                        instance_path=f"{parent_mod.name}.{inst.instance_name}",
+                        role="port_input_up",
+                        description=f"input 端口 {port_name} 在例化 {inst.instance_name} 中连接到 {actual_signal}",
+                        file_path=inst.file_path or parent_mod.file_path,
+                        line=inst.line,
+                        depth=depth,
+                    )
+                    parent.children.append(child)
+                    # Continue tracing the actual signal's fan_in in parent
+                    self._trace_fan_in(child, actual_signal, parent_mod.name,
+                                       parent_mod.name, depth + 1, max_depth, visited)
+
+        if not found_parent:
+            # No parent instantiation found — this is a top-level input
+            child = TraceNode(
+                signal_name=port_name,
+                module_name=module_name,
+                instance_path=instance_path,
+                role="top_level_input",
+                description=f"顶层 input 端口 {port_name}（无父模块例化）",
+                depth=depth,
+            )
+            parent.children.append(child)
+
+    def _trace_port_fan_out_upward(
+        self, parent, port_name, module_name, instance_path,
+        depth, max_depth, visited,
+    ):
+        """output 端口向上追踪：穿过父模块例化，找到实际信号，再 trace fan_out"""
+        if depth > max_depth:
+            return
+        visit_key = (module_name, port_name, "port_fan_out_up")
+        if visit_key in visited:
+            return
+        visited.add(visit_key)
+
+        mod_name_lower = module_name.lower()
+        found_parent = False
+
+        for parent_mod in self._index_store.get_all_modules():
+            for inst in parent_mod.instances:
+                if inst.module_type.lower() != mod_name_lower:
+                    continue
+                actual_signal = inst.port_connections.get(port_name)
+                if actual_signal:
+                    found_parent = True
+                    child = TraceNode(
+                        signal_name=actual_signal,
+                        module_name=parent_mod.name,
+                        instance_path=f"{parent_mod.name}.{inst.instance_name}",
+                        role="port_output_up",
+                        description=f"output 端口 {port_name} 在例化 {inst.instance_name} 中连接到 {actual_signal}",
+                        file_path=inst.file_path or parent_mod.file_path,
+                        line=inst.line,
+                        depth=depth,
+                    )
+                    parent.children.append(child)
+                    # Continue tracing the actual signal's fan_out in parent
+                    self._trace_fan_out(child, actual_signal, parent_mod.name,
+                                        parent_mod.name, depth + 1, max_depth, visited)
+
+        if not found_parent:
+            child = TraceNode(
+                signal_name=port_name,
+                module_name=module_name,
+                instance_path=instance_path,
+                role="top_level_output",
+                description=f"顶层 output 端口 {port_name}（无父模块例化）",
+                depth=depth,
+            )
+            parent.children.append(child)
+
     # ── Fan-in 追踪 ──
 
-    def _trace_fan_in(self, parent, signal_name, module_name, instance_path, depth, max_depth):
+    def _trace_fan_in(self, parent, signal_name, module_name, instance_path, depth, max_depth, visited):
         if depth > max_depth:
             return
         visit_key = (module_name, signal_name, "fan_in")
-        if visit_key in self._visited:
+        if visit_key in visited:
             return
-        self._visited.add(visit_key)
+        visited.add(visit_key)
 
         mod = self._index_store.get_module(module_name)
         if not mod:
@@ -134,21 +312,21 @@ class DataflowTracer:
         if is_port:
             port = self._get_port(mod, signal_name)
             if port and port.direction == "input":
-                self._trace_input_port_fan_in(parent, signal_name, module_name, instance_path, depth, max_depth)
+                self._trace_input_port_fan_in(parent, signal_name, module_name, instance_path, depth, max_depth, visited)
             elif port and port.direction == "output":
-                self._trace_output_port_fan_in(parent, signal_name, module_name, instance_path, depth, max_depth)
+                self._trace_output_port_fan_in(parent, signal_name, module_name, instance_path, depth, max_depth, visited)
             elif port and port.direction == "inout":
-                self._trace_input_port_fan_in(parent, signal_name, module_name, instance_path, depth, max_depth)
-                self._trace_output_port_fan_in(parent, signal_name, module_name, instance_path, depth, max_depth)
+                self._trace_input_port_fan_in(parent, signal_name, module_name, instance_path, depth, max_depth, visited)
+                self._trace_output_port_fan_in(parent, signal_name, module_name, instance_path, depth, max_depth, visited)
 
         if is_signal or is_port:
             sig = self._get_signal(mod, signal_name)
             if sig and sig.drivers:
                 for drv in sig.drivers:
                     if drv.type == "assign":
-                        self._trace_assign_rhs(parent, signal_name, module_name, instance_path, mod, depth, max_depth, drv)
+                        self._trace_assign_rhs(parent, signal_name, module_name, instance_path, mod, depth, max_depth, drv, visited)
                     elif drv.type == "always_block":
-                        self._trace_always_rhs(parent, signal_name, module_name, instance_path, mod, depth, max_depth, drv)
+                        self._trace_always_rhs(parent, signal_name, module_name, instance_path, mod, depth, max_depth, drv, visited)
                     elif drv.type in ("port_connection", "instance_output"):
                         child = TraceNode(
                             signal_name=signal_name, module_name=module_name,
@@ -159,40 +337,43 @@ class DataflowTracer:
                         )
                         parent.children.append(child)
 
-        self._trace_instance_port_fan_in(parent, signal_name, module_name, instance_path, depth, max_depth)
+        self._trace_instance_port_fan_in(parent, signal_name, module_name, instance_path, depth, max_depth, visited)
 
-    def _trace_input_port_fan_in(self, parent, signal_name, module_name, instance_path, depth, max_depth):
-        mod_name_lower = module_name.lower()
-        for parent_mod in self._index_store.get_all_modules():
+    def _trace_input_port_fan_in(self, parent, signal_name, module_name, instance_path, depth, max_depth, visited):
+        for parent_mod_name in self._index_store.find_instantiators(module_name):
+            parent_mod = self._index_store.get_module(parent_mod_name)
+            if not parent_mod:
+                continue
             for inst in parent_mod.instances:
-                if inst.module_type.lower() == mod_name_lower:
-                    actual_signal = inst.port_connections.get(signal_name)
-                    if actual_signal is None:
-                        child_mod = self._index_store.get_module(inst.module_type)
-                        if child_mod:
-                            port_idx = -1
-                            for i, p in enumerate(child_mod.ports):
-                                if p.name == signal_name:
-                                    port_idx = i
-                                    break
-                            if port_idx >= 0:
-                                ports_list = list(inst.port_connections.items())
-                                if port_idx < len(ports_list):
-                                    actual_signal = list(ports_list[port_idx])[1]
+                if inst.module_type.lower() != module_name.lower():
+                    continue
+                actual_signal = inst.port_connections.get(signal_name)
+                if actual_signal is None:
+                    child_mod = self._index_store.get_module(inst.module_type)
+                    if child_mod:
+                        port_idx = -1
+                        for i, p in enumerate(child_mod.ports):
+                            if p.name == signal_name:
+                                port_idx = i
+                                break
+                        if port_idx >= 0:
+                            ports_list = list(inst.port_connections.items())
+                            if port_idx < len(ports_list):
+                                actual_signal = list(ports_list[port_idx])[1]
 
-                    if actual_signal is not None:
-                        child = TraceNode(
-                            signal_name=actual_signal, module_name=parent_mod.name,
-                            instance_path=f"{parent_mod.name}.{inst.instance_name}" if parent_mod.name != instance_path else instance_path,
-                            role="port_input_up",
-                            description=f"input端口 {signal_name} 在例化 {inst.instance_name} 中连接到 {actual_signal}",
-                            file_path=inst.file_path or parent_mod.file_path,
-                            line=inst.line, depth=depth,
-                        )
-                        parent.children.append(child)
-                        self._trace_fan_in(child, actual_signal, parent_mod.name, parent_mod.name, depth + 1, max_depth)
+                if actual_signal is not None:
+                    child = TraceNode(
+                        signal_name=actual_signal, module_name=parent_mod.name,
+                        instance_path=f"{parent_mod.name}.{inst.instance_name}" if parent_mod.name != instance_path else instance_path,
+                        role="port_input_up",
+                        description=f"input端口 {signal_name} 在例化 {inst.instance_name} 中连接到 {actual_signal}",
+                        file_path=inst.file_path or parent_mod.file_path,
+                        line=inst.line, depth=depth,
+                    )
+                    parent.children.append(child)
+                    self._trace_fan_in(child, actual_signal, parent_mod.name, parent_mod.name, depth + 1, max_depth, visited)
 
-    def _trace_output_port_fan_in(self, parent, signal_name, module_name, instance_path, depth, max_depth):
+    def _trace_output_port_fan_in(self, parent, signal_name, module_name, instance_path, depth, max_depth, visited):
         mod = self._index_store.get_module(module_name)
         if not mod:
             return
@@ -207,9 +388,9 @@ class DataflowTracer:
                 )
                 parent.children.append(child)
                 if drv.type == "assign":
-                    self._trace_assign_rhs(child, signal_name, module_name, instance_path, mod, depth + 1, max_depth, drv)
+                    self._trace_assign_rhs(child, signal_name, module_name, instance_path, mod, depth + 1, max_depth, drv, visited)
 
-    def _trace_instance_port_fan_in(self, parent, signal_name, module_name, instance_path, depth, max_depth):
+    def _trace_instance_port_fan_in(self, parent, signal_name, module_name, instance_path, depth, max_depth, visited):
         mod = self._index_store.get_module(module_name)
         if not mod:
             return
@@ -230,17 +411,17 @@ class DataflowTracer:
                             )
                             parent.children.append(child)
                             self._trace_fan_in(child, formal_port, child_mod.name,
-                                             f"{instance_path}.{inst.instance_name}", depth + 1, max_depth)
+                                             f"{instance_path}.{inst.instance_name}", depth + 1, max_depth, visited)
 
     # ── Fan-out 占位 (子类覆盖) ──
 
-    def _trace_fan_out(self, parent, signal_name, module_name, instance_path, depth, max_depth):
+    def _trace_fan_out(self, parent, signal_name, module_name, instance_path, depth, max_depth, visited):
         """子类覆盖实现 fan-out 追踪"""
         pass
 
     # ── Assign / Always 辅助 ──
 
-    def _trace_assign_rhs(self, parent, signal_name, module_name, instance_path, mod, depth, max_depth, drv):
+    def _trace_assign_rhs(self, parent, signal_name, module_name, instance_path, mod, depth, max_depth, drv, visited):
         for assign in mod.assignments:
             if assign.lhs == signal_name:
                 rhs_signals = self._extract_signal_names(assign.rhs)
@@ -253,10 +434,10 @@ class DataflowTracer:
                         line=assign.line, depth=depth,
                     )
                     parent.children.append(child)
-                    self._trace_fan_in(child, rhs_sig, module_name, instance_path, depth + 1, max_depth)
+                    self._trace_fan_in(child, rhs_sig, module_name, instance_path, depth + 1, max_depth, visited)
                 break
 
-    def _trace_always_rhs(self, parent, signal_name, module_name, instance_path, mod, depth, max_depth, drv):
+    def _trace_always_rhs(self, parent, signal_name, module_name, instance_path, mod, depth, max_depth, drv, visited):
         for always in mod.always_blocks:
             for stmt in always.statements:
                 if "=" in stmt or "<=" in stmt:
@@ -274,7 +455,7 @@ class DataflowTracer:
                                 file_path=mod.file_path, depth=depth,
                             )
                             parent.children.append(child)
-                            self._trace_fan_in(child, rhs_sig, module_name, instance_path, depth + 1, max_depth)
+                            self._trace_fan_in(child, rhs_sig, module_name, instance_path, depth + 1, max_depth, visited)
 
     # ── 辅助方法 ──
 

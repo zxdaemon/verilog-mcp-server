@@ -140,16 +140,24 @@ class InstanceExtractor:
         return formal, actual
 
     def _extract_param_overrides(self, node, source_text: str) -> dict[str, str]:
-        """提取参数覆盖值 #(...)"""
+        """提取参数覆盖值 #(...)
+
+        支持两种语法：
+        - #(param1=val1, param2=val2)
+        - #(.param1(val1), .param2(val2))
+        """
         text = get_node_text(node, source_text)
+        overrides = {}
+
         # 简单解析 #(param1=val1, param2=val2)
         inner = text.strip()
         if inner.startswith("#"):
             inner = inner[1:]
         if inner.startswith("(") and inner.endswith(")"):
             inner = inner[1:-1]
-        overrides = {}
-        # 简单按逗号分割（不考虑嵌套括号）
+
+        # 按逗号分割（考虑嵌套括号）
+        items = []
         depth = 0
         current = ""
         for ch in inner:
@@ -160,13 +168,26 @@ class InstanceExtractor:
                 depth -= 1
                 current += ch
             elif ch == ',' and depth == 0:
-                if '=' in current:
-                    k, v = current.split('=', 1)
-                    overrides[k.strip()] = v.strip()
+                items.append(current.strip())
                 current = ""
             else:
                 current += ch
-        if current and '=' in current:
-            k, v = current.split('=', 1)
-            overrides[k.strip()] = v.strip()
+        if current.strip():
+            items.append(current.strip())
+
+        for item in items:
+            item = item.strip()
+            if not item:
+                continue
+            # 格式1: param=val
+            if '=' in item and not item.startswith("."):
+                k, v = item.split('=', 1)
+                overrides[k.strip()] = v.strip()
+            # 格式2: .param(val)
+            elif item.startswith(".") and '(' in item and item.endswith(")"):
+                dot_end = item.find("(")
+                name = item[1:dot_end].strip()
+                value = item[dot_end + 1:-1].strip()
+                overrides[name] = value
+
         return overrides

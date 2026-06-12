@@ -10,12 +10,17 @@ from pathlib import Path
 from typing import Optional
 
 from .project_scanner import ProjectScanner
-from .verilog_parser import parse_file, find_child, get_node_text
+from .verilog_parser import parse_file
 from .module_extractor import ModuleExtractor
 from .port_extractor import PortExtractor
 from .instance_extractor import InstanceExtractor
 from .signal_extractor import SignalExtractor
 from .type_extractor import TypeExtractor
+from .package_extractor import PackageExtractor
+from .sva_extractor import SvaExtractor
+from .macro_extractor import MacroExtractor
+from .pyslang_parser import PyslangParser, is_pyslang_available
+from .pyslang_extractor import PyslangExtractor
 from ..database.index_store import IndexStore
 
 logger = logging.getLogger(__name__)
@@ -34,6 +39,10 @@ class IndexBuilder:
         self.instance_extractor._index_store = index_store
         self.signal_extractor = SignalExtractor()
         self.type_extractor = TypeExtractor()
+        self.package_extractor = PackageExtractor()
+        self.sva_extractor = SvaExtractor()
+        self.macro_extractor = MacroExtractor()
+        self.pyslang_extractor = PyslangExtractor()
 
     def build(self, incremental: bool = False) -> IndexStore:
         """构建索引
@@ -47,7 +56,7 @@ class IndexBuilder:
         logger.info("开始构建索引...")
         self.index_store.clear()
 
-        files = self.scanner.scan()
+        files, filelist_incdirs, filelist_defines = self.scanner.scan()
         total_files = len(files)
         parsed_count = 0
         module_count = 0
@@ -61,16 +70,23 @@ class IndexBuilder:
             tree, source_text = result
             parsed_count += 1
 
+            # 文件级: 提取 package 定义和宏
+            for pkg in self.package_extractor.extract_package_defs(tree, source_text, fp):
+                for td in pkg.typedefs:
+                    self.index_store.add_type(td)
+
             modules = self.module_extractor.extract(tree, source_text, fp)
             if not modules:
                 continue
 
-            for mod in modules:
-                module_node = self._find_module_node(tree, mod.name, source_text)
-                if module_node is None:
-                    continue
-
+            for mod, module_node in modules:
                 mod.ports = self.port_extractor.extract_from_module(module_node, source_text)
+                mod.package_imports = self.package_extractor.extract_imports_from_module(
+                    module_node, source_text)
+                mod.assertions = self.sva_extractor.extract_from_module(
+                    module_node, source_text)
+                mod.is_testbench, mod.has_non_synth_constructs = \
+                    self.signal_extractor.detect_testbench(module_node, source_text)
                 body_node = module_node
                 mod.signals = self.signal_extractor.extract_signals(body_node, source_text)
                 mod.instances = self.instance_extractor.extract_from_module_body(body_node, source_text, fp)
@@ -100,7 +116,95 @@ class IndexBuilder:
         if self.config.get("cache", {}).get("auto_save", True):
             self.index_store.save()
 
+        # ── pyslang elaboration 步骤 ──
+        self._run_pyslang_elaboration(file_paths=files, filelist_incdirs=filelist_incdirs, filelist_defines=filelist_defines)
+
         return self.index_store
+
+    def _run_pyslang_elaboration(self, file_paths: list = None, force: bool = False,
+                                 filelist_incdirs: list[str] = None,
+                                 filelist_defines: dict[str, str] = None) -> None:
+        """运行 pyslang elaboration 并提取增强数据
+
+        Args:
+            file_paths: RTL 文件路径列表。为 None 时自动扫描。
+            force: 是否强制重新运行（忽略缓存）
+            filelist_incdirs: .f 文件中收集的 include 路径
+            filelist_defines: .f 文件中收集的宏定义
+        """
+        pyslang_config = self.config.get("pyslang", {})
+        if not pyslang_config.get("enabled", True):
+            logger.debug("pyslang 已禁用，跳过 elaboration")
+            return
+
+        if not is_pyslang_available():
+            logger.info("pyslang 未安装，跳过 elaboration（tree-sitter 索引不受影响）")
+            return
+
+        if file_paths is None:
+            file_paths, filelist_incdirs, filelist_defines = self.scanner.scan()
+
+        file_strs = [str(fp) for fp in file_paths]
+        if not file_strs:
+            return
+
+        # 合并 include dirs: config 优先 + filelist 补充
+        config_incdirs = pyslang_config.get("include_dirs", [])
+        merged_incdirs = list(config_incdirs)
+        for d in (filelist_incdirs or []):
+            if d not in merged_incdirs:
+                merged_incdirs.append(d)
+
+        # 合并 defines: config 覆盖 filelist
+        merged_defines = dict(filelist_defines or {})
+        merged_defines.update(pyslang_config.get("defines", {}))
+
+        try:
+            parser = PyslangParser(
+                include_dirs=merged_incdirs,
+                defines=merged_defines,
+                top_module=pyslang_config.get("top_module", ""),
+            )
+
+            compilation = parser.parse_files(file_strs)
+            if not compilation:
+                logger.warning("pyslang 解析失败，无 elaboration 数据")
+                return
+
+            design_root = parser.elaborate(compilation)
+            if not design_root:
+                logger.warning("pyslang elaboration 失败")
+                return
+
+            diagnostics = parser.get_diagnostics(compilation)
+
+            # 提取 elaborated 实例
+            instances = self.pyslang_extractor.extract_elaborated_instances(design_root)
+            if instances:
+                self.index_store.save_elab_instances(instances)
+
+            # 提取 resolved 信号
+            signals = self.pyslang_extractor.extract_resolved_signals(design_root)
+            if signals:
+                self.index_store.save_resolved_signals(signals)
+
+            # 构建并保存报告
+            ts_module_count = self.index_store.module_count
+            report = self.pyslang_extractor.build_report(
+                design_root, ts_module_count, diagnostics
+            )
+            self.index_store.save_elab_report(report)
+
+            logger.info(
+                f"pyslang elaboration 完成: {report.total_instances} 实例, "
+                f"{report.generated_instances} generate 展开, "
+                f"{report.resolved_signals} 信号, "
+                f"{report.error_count} 错误, {report.warning_count} 警告"
+            )
+
+        except Exception as e:
+            logger.warning(f"pyslang elaboration 异常: {e}")
+            # 不阻塞 tree-sitter 索引
 
     # ── Incremental Build ──
 
@@ -149,14 +253,49 @@ class IndexBuilder:
         if self.config.get("cache", {}).get("auto_save", True):
             self.index_store.save()
 
+        # ── 增量构建时条件触发 pyslang elaboration ──
+        if self._should_trigger_pyslang(all_changed):
+            logger.info("变更涉及接口/结构，触发 pyslang elaboration")
+            all_files, incdirs, defines = self.scanner.scan()
+            self._run_pyslang_elaboration(file_paths=all_files, filelist_incdirs=incdirs, filelist_defines=defines)
+        else:
+            logger.debug("变更不涉及接口/结构，跳过 pyslang elaboration")
+
         return self.index_store
+
+    def _should_trigger_pyslang(self, changed_files: list[str]) -> bool:
+        """判断变更文件是否应触发 pyslang elaboration 重跑
+
+        轻量变更（assign 语句改值、内部逻辑改表达式）不触发
+        接口变更（端口增删、parameter 值变化、generate 条件、模块例化增删）触发
+        """
+        if not changed_files:
+            return False
+
+        # 简单启发式：检查文件内容关键词
+        pyslang_keywords = (
+            b"parameter", b"localparam", b"generate", b"genvar",
+            b"defparam", b"module", b"endmodule", b"instance",
+            b"`define", b"`ifdef", b"`ifndef", b"`include",
+        )
+        for fp in changed_files:
+            try:
+                with open(fp, "rb") as f:
+                    content = f.read(32768)  # 读取前 32KB
+                    lower = content.lower()
+                    for kw in pyslang_keywords:
+                        if kw in lower:
+                            return True
+            except OSError:
+                continue
+        return False
 
     def _detect_changed_files(self) -> list[str]:
         """通过 mtime + SHA256 检测变更文件"""
         if not self.index_store._db:
             return []
 
-        scanned = self.scanner.scan()
+        scanned, _, _ = self.scanner.scan()
         stored_metas = self.index_store._db.get_all_file_metas()
         changed = []
 
@@ -183,7 +322,7 @@ class IndexBuilder:
         if not self.index_store._db:
             return []
 
-        scanned = {str(fp) for fp in self.scanner.scan()}
+        scanned = {str(fp) for fp in self.scanner.scan()[0]}
         stored = set(self.index_store._db.get_all_file_metas().keys())
         return list(scanned - stored)
 
@@ -222,17 +361,23 @@ class IndexBuilder:
             return 0
 
         tree, source_text = result
+
+        # 文件级: 提取 package 定义
+        for pkg in self.package_extractor.extract_package_defs(tree, source_text, file_path):
+            for td in pkg.typedefs:
+                self.index_store.add_type(td)
+
         modules = self.module_extractor.extract(tree, source_text, file_path)
         if not modules:
             return 0
 
         count = 0
-        for mod in modules:
-            module_node = self._find_module_node(tree, mod.name, source_text)
-            if module_node is None:
-                continue
-
+        for mod, module_node in modules:
             mod.ports = self.port_extractor.extract_from_module(module_node, source_text)
+            mod.package_imports = self.package_extractor.extract_imports_from_module(
+                module_node, source_text)
+            mod.assertions = self.sva_extractor.extract_from_module(
+                module_node, source_text)
             body_node = module_node
             mod.signals = self.signal_extractor.extract_signals(body_node, source_text)
             mod.instances = self.instance_extractor.extract_from_module_body(body_node, source_text, file_path)
@@ -253,37 +398,3 @@ class IndexBuilder:
 
         return count
 
-    def _find_module_node(self, tree, module_name: str, source_text: str):
-        """在 AST 中查找指定名称的 module_declaration 节点"""
-        return self._search_module_node(tree.root_node(), module_name, source_text)
-
-    def _search_module_node(self, node, module_name: str, source_text: str):
-        """递归搜索 module_declaration 节点"""
-        if node.kind() == "module_declaration":
-            header = find_child(node, "module_ansi_header")
-            if not header:
-                header = find_child(node, "module_nonansi_header")
-            if header:
-                # 在 header 中找模块名（simple_identifier）
-                for i in range(header.child_count()):
-                    child = header.child(i)
-                    if child.kind() == "simple_identifier":
-                        name = get_node_text(child, source_text)
-                        if name == module_name:
-                            return node
-                # 循环结束未匹配，继续递归
-            else:
-                # 无 header，尝试从子节点找模块名
-                for i in range(node.child_count()):
-                    child = node.child(i)
-                    if child.kind() == "simple_identifier":
-                        name = get_node_text(child, source_text)
-                        if name == module_name:
-                            return node
-            return None
-
-        for i in range(node.child_count()):
-            result = self._search_module_node(node.child(i), module_name, source_text)
-            if result:
-                return result
-        return None

@@ -17,7 +17,7 @@ from mcp.server.fastmcp import FastMCP
 
 from .database.index_store import IndexStore
 from .indexer.builder import IndexBuilder
-from .tools import register_level1, register_level2, register_level3
+from .tools import register_level1, register_level2, register_level3, register_visualize, register_elab
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,12 @@ DEFAULT_CONFIG = {
         "exclude_files": ["*_top.sv", "*_top.v"],
         "language_map": {".v": "verilog", ".sv": "systemverilog", ".svh": "systemverilog"},
     },
+    "pyslang": {
+        "enabled": True,
+        "include_dirs": [],
+        "defines": {},
+        "top_module": "",
+    },
     "cache": {
         "path": ".verilog_mcp/cache.db",
         "auto_load": True,
@@ -66,7 +72,7 @@ def load_config(config_path: str = None) -> dict:
         merged = DEFAULT_CONFIG.copy()
         if config:
             merged.update(config)
-            for section in ("index", "cache"):
+            for section in ("index", "cache", "pyslang"):
                 if section in config:
                     merged[section].update(config[section])
         return merged
@@ -104,6 +110,7 @@ def create_app(config: dict) -> FastMCP:
     Returns:
         FastMCP 应用实例
     """
+    from . import __version__
     server_config = config.get("server", {})
     mcp = FastMCP(
         server_config.get("name", "verilog-analyzer"),
@@ -128,20 +135,32 @@ def create_app(config: dict) -> FastMCP:
     # 注册 Level 3 智能分析 tools
     register_level3(mcp, index_store)
 
+    # 注册可视化 tools
+    register_visualize(mcp, index_store)
+
+    # 注册 elaboration tools
+    register_elab(mcp, index_store)
+
     # 注册管理 tool: 索引构建
     @mcp.tool()
-    def rtl_build_index(paths: list[str] = None) -> str:
+    def rtl_build_index(paths: list[str] = None, filelist: list[str] = None, top_module: str = None) -> str:
         """
         构建/重建 RTL 代码索引
-        
+
         Args:
             paths: 可选，指定要扫描的项目路径列表（覆盖配置文件中的 paths）
-            
+            filelist: 可选，指定 .f 文件列表路径（支持多个），其中的 +incdir+ 和 +define+ 自动传递给 pyslang
+            top_module: 可选，指定顶层模块名（覆盖配置文件中的 top_module）
+
         Returns:
             索引构建结果统计
         """
-        if paths:
+        if filelist:
+            config["index"]["paths"] = filelist
+        elif paths:
             config["index"]["paths"] = paths
+        if top_module:
+            config["pyslang"]["top_module"] = top_module
 
         builder = IndexBuilder(config, index_store)
         store = builder.build()
@@ -234,8 +253,14 @@ def create_app(config: dict) -> FastMCP:
 
 def main():
     """主入口"""
+    from . import __version__
     parser = argparse.ArgumentParser(
         description="Verilog/SystemVerilog MCP 代码语义分析服务器"
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     parser.add_argument(
         "-c", "--config",
@@ -246,6 +271,15 @@ def main():
         "-p", "--paths",
         nargs="+",
         help="要索引的项目路径（覆盖配置）"
+    )
+    parser.add_argument(
+        "-f", "--filelist",
+        nargs="+",
+        help="指定 .f 文件列表路径（支持多个）"
+    )
+    parser.add_argument(
+        "-t", "--top",
+        help="指定顶层模块名"
     )
     parser.add_argument(
         "--build",
@@ -274,6 +308,11 @@ def main():
     config = load_config(args.config)
     if args.paths:
         config["index"]["paths"] = args.paths
+    if args.filelist:
+        # .f 文件合并到 paths（filelist 优先）
+        config["index"]["paths"] = args.filelist
+    if args.top:
+        config["pyslang"]["top_module"] = args.top
     if args.cache:
         config["cache"]["path"] = args.cache
 

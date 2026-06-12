@@ -379,3 +379,58 @@ class SignalExtractor:
             if result:
                 return result
         return ""
+
+    # ── Testbench / Non-Synth Detection ──
+
+    _SYSTEM_TASKS = {"$display", "$monitor", "$strobe", "$finish", "$fatal",
+                     "$error", "$warning", "$info", "$write", "$stop"}
+
+    def detect_testbench(self, module_body_node, source_text: str) -> tuple[bool, bool]:
+        """检测模块是否为 testbench 或包含非综合结构
+
+        Returns:
+            (is_testbench, has_non_synth_constructs)
+        """
+        is_tb = False
+        has_nonsynth = False
+
+        def _walk(n, depth=0):
+            nonlocal is_tb, has_nonsynth
+            if depth > 30:
+                return
+
+            kind = n.kind()
+
+            if kind == "initial_construct":
+                is_tb = True
+
+            elif kind == "fork_block" or kind == "forkjoin":
+                is_tb = True
+
+            elif kind == "system_tf_call":
+                name = ""
+                for i in range(n.child_count()):
+                    c = n.child(i)
+                    if c.kind() == "system_tf_identifier":
+                        name = get_node_text(c, source_text)
+                        break
+                if name in self._SYSTEM_TASKS:
+                    has_nonsynth = True
+
+            elif kind == "delay_control":
+                has_nonsynth = True
+
+            elif kind == "procedural_continuous_assignment" or kind == "release":
+                has_nonsynth = True
+
+            elif kind == "event_control":
+                # Check for #delay in timing control
+                text = get_node_text(n, source_text)
+                if text.startswith("#"):
+                    has_nonsynth = True
+
+            for i in range(n.child_count()):
+                _walk(n.child(i), depth + 1)
+
+        _walk(module_body_node)
+        return is_tb, has_nonsynth

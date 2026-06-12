@@ -1,0 +1,4 @@
+name: extended-hdl-features
+date: 2026-05-27
+status: proposed
+description: 覆盖剩余未实现的 HDL 特性：package/import、SVA 断言、function/task、defparam、门级原语、generate 循环展开、参数常量传播、增量索引、并行解析

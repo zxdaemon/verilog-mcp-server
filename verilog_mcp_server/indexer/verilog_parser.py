@@ -96,7 +96,7 @@ def get_node_text(node, source_text: str) -> str:
     try:
         br = node.byte_range()
         return source_text[br.start:br.end]
-    except Exception:
+    except (AttributeError, TypeError, IndexError):
         return ""
 
 
@@ -110,7 +110,7 @@ def get_node_line(node) -> int:
     try:
         pos = node.start_position()
         return pos.row + 1
-    except Exception:
+    except (AttributeError, TypeError):
         return 0
 
 
@@ -119,7 +119,7 @@ def get_node_line_end(node) -> int:
     try:
         pos = node.end_position()
         return pos.row + 1
-    except Exception:
+    except (AttributeError, TypeError):
         return 0
 
 

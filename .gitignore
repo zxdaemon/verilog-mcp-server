@@ -8,3 +8,6 @@ dist/
 build/
 /tmp/
 .DS_Store
+.codegraph/
+.verilog_mcp/
+tree-sitter-cache/

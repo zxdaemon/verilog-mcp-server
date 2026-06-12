@@ -26,7 +26,16 @@ def test_extract_instances():
     extractor = InstanceExtractor()
     tree, src = parse_source(MODULE_WITH_INSTANCES)
 
-    instances = extractor.extract_from_module_body(tree.root_node(), src, "top.v")
+    # Find module_declaration node from source_file root
+    root = tree.root_node()
+    module_node = None
+    for i in range(root.child_count()):
+        if root.child(i).kind() == "module_declaration":
+            module_node = root.child(i)
+            break
+    assert module_node is not None
+
+    instances = extractor.extract_from_module_body(module_node, src, "top.v")
     assert len(instances) >= 1
 
     inst_map = {i.instance_name: i for i in instances}
@@ -34,11 +43,21 @@ def test_extract_instances():
     assert inst_map["u_adder"].module_type == "adder"
 
 
+def _get_module_node(tree):
+    """Helper: find module_declaration node from source_file tree"""
+    root = tree.root_node()
+    for i in range(root.child_count()):
+        if root.child(i).kind() == "module_declaration":
+            return root.child(i)
+    return None
+
+
 def test_port_connections():
     extractor = InstanceExtractor()
     tree, src = parse_source(MODULE_WITH_INSTANCES)
 
-    instances = extractor.extract_from_module_body(tree.root_node(), src, "top.v")
+    module_node = _get_module_node(tree)
+    instances = extractor.extract_from_module_body(module_node, src, "top.v")
     inst_map = {i.instance_name: i for i in instances}
 
     if "u_adder" in inst_map:
@@ -52,7 +71,8 @@ def test_param_overrides():
     extractor = InstanceExtractor()
     tree, src = parse_source(MODULE_WITH_INSTANCES)
 
-    instances = extractor.extract_from_module_body(tree.root_node(), src, "top.v")
+    module_node = _get_module_node(tree)
+    instances = extractor.extract_from_module_body(module_node, src, "top.v")
     inst_map = {i.instance_name: i for i in instances}
 
     if "u_counter" in inst_map:
@@ -63,5 +83,7 @@ def test_param_overrides():
 def test_no_instances():
     extractor = InstanceExtractor()
     tree, src = parse_source("module empty(); endmodule")
-    instances = extractor.extract_from_module_body(tree.root_node(), src, "empty.v")
+
+    module_node = _get_module_node(tree)
+    instances = extractor.extract_from_module_body(module_node, src, "empty.v")
     assert len(instances) == 0

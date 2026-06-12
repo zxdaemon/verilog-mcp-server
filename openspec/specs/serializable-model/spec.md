@@ -29,3 +29,17 @@
 
 - **WHEN** 使用 IndexStore 构建索引后执行 `save(path)` 和 `load(path)`
 - **THEN** 加载后的 `module_count`、模块名列表、端口数量与保存前一致
+
+### Requirement: dataclass 支持 SQLite 行序列化
+
+`database/models.py` 的 `SerializableModel` 基类 SHALL 新增 `to_row()` 和 `from_row()` 方法，用于 SQLite 行存储。
+
+#### Scenario: ModuleDef 行序列化
+
+- **WHEN** 调用 `module.to_row()`
+- **THEN** 返回 dict，其中基础字段（name、file_path、line_start、line_end）直接存储，嵌套字段（ports、signals 等）序列化为 JSON 字符串
+
+#### Scenario: ModuleDef 行反序列化
+
+- **WHEN** 调用 `ModuleDef.from_row(row_dict)`
+- **THEN** 从行 dict 构造 `ModuleDef` 对象，嵌套字段从 JSON 字符串反序列化

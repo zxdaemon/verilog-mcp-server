@@ -116,6 +116,9 @@ class ClockTreeBuilder:
                 if entry.is_gated_cell:
                     group.is_gated = True
                     group.gating_cell_path = entry.instance_path
+                    if not group.gated_from:
+                        group.gated_from = self._find_gated_clock_source(
+                            entry.instance_path, top_module)
 
         # 按模块数降序排列
         result.clock_domains = sorted(group_map.values(),
@@ -136,7 +139,7 @@ class ClockTreeBuilder:
 
         try:
             analysis = self._clock_analyzer.analyze(module_name)
-        except Exception:
+        except (ValueError, AttributeError):
             analysis = None
 
         if analysis and analysis.clock_domains:
@@ -208,6 +211,53 @@ class ClockTreeBuilder:
         """检查模块类型是否匹配门控时钟模式"""
         mt_lower = module_type.lower()
         return any(pattern.lower() in mt_lower for pattern in self._gated_patterns)
+
+    def _find_gated_clock_source(self, gating_cell_path: str,
+                                 top_module: str) -> str | None:
+        """通过 port_connections 查找门控时钟单元的源时钟信号"""
+        if "." not in gating_cell_path:
+            return None
+
+        parts = gating_cell_path.split(".")
+        # 查找父模块：需要解析 instance_path 得到模块类型
+        parent_path = ".".join(parts[:-1])
+        inst_name = parts[-1]
+
+        # 通过 _trace_clock_to_root 的类似逻辑找到父模块类型
+        parent_mod_name = top_module
+        if "." in parent_path:
+            parent_parts = parent_path.split(".")
+            # 最后一个 part 是 instance_name，需要找到对应的 module_type
+            parent_inst_name = parent_parts[-1]
+            grandparent_path = ".".join(parent_parts[:-1]) if len(parent_parts) > 1 else ""
+            grandparent_mod = self._index_store.get_module(
+                grandparent_path.split(".")[-1] if grandparent_path else top_module)
+            if grandparent_mod:
+                for inst in grandparent_mod.instances:
+                    if inst.instance_name == parent_inst_name:
+                        parent_mod_name = inst.module_type
+                        break
+        else:
+            parent_mod_name = top_module
+
+        parent_mod = self._index_store.get_module(parent_mod_name)
+        if not parent_mod:
+            return None
+
+        for inst in parent_mod.instances:
+            if inst.instance_name == inst_name:
+                # 启发式：端口名含 clk/clock 且不含 out/gated 的通常是输入时钟
+                for port, signal in inst.port_connections.items():
+                    pl = port.lower()
+                    if ("clk" in pl or "clock" in pl) and "out" not in pl and "gated" not in pl:
+                        return signal
+                # fallback: 任意含 clk 的端口
+                for port, signal in inst.port_connections.items():
+                    if "clk" in port.lower():
+                        return signal
+                break
+
+        return None
 
     # ── 格式化 ──
 
@@ -286,38 +336,3 @@ class ClockTreeBuilder:
 
         for k, root in enumerate(roots):
             _format_subtree(root, "", k == len(roots) - 1)
-
-    def format_mermaid(self, result: ClockTreeResult) -> str:
-        """格式化时钟树为 Mermaid flowchart"""
-        lines = ["flowchart TD"]
-
-        node_idx = 0
-
-        for gi, group in enumerate(result.clock_domains):
-            gated_info = ""
-            if group.is_gated:
-                gated_info = f" [gated]"
-            domain_id = f"CD_{gi}"
-            lines.append(f"  subgraph {domain_id}[\"🔹 {group.root_clock_name} "
-                        f"({group.edge}){gated_info}\"]")
-
-            # 为域中每个模块创建节点
-            sorted_mods = sorted(group.modules, key=lambda m: m.depth)
-            path_to_node: dict[str, str] = {}
-
-            for m in sorted_mods:
-                nid = f"n{node_idx}"
-                node_idx += 1
-                gated = " ⚙" if m.is_gated_cell else ""
-                lines.append(f"    {nid}[\"{m.instance_name}: {m.module_type} [{m.local_clock_signal}]{gated}\"]")
-                path_to_node[m.instance_path] = nid
-
-                # 连接到父节点
-                if "." in m.instance_path:
-                    parent_path = m.instance_path.rsplit(".", 1)[0]
-                    if parent_path in path_to_node:
-                        lines.append(f"    {path_to_node[parent_path]} --> {nid}")
-
-            lines.append(f"  end")
-
-        return "\n".join(lines)

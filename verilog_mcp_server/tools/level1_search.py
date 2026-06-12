@@ -11,11 +11,15 @@ from ..database.index_store import IndexStore
 from ..database.errors import ModuleNotFoundError, SignalNotFoundError, DomainError
 
 
-def _fmt_module_summary(mod) -> str:
+def _fmt_module_summary(mod, resolved_signals: list = None) -> str:
     """格式化模块摘要"""
     lines = [f"## {mod.name}"]
     lines.append(f"- 路径: `{mod.file_path}`")
     lines.append(f"- 行号: {mod.line_start}-{mod.line_end}")
+
+    # pyslang resolved 信号
+    if resolved_signals:
+        lines.append(f"- pyslang 增强: {len(resolved_signals)} 个 resolved 信号")
 
     if mod.ports:
         lines.append(f"- 端口 ({len(mod.ports)}):")
@@ -32,10 +36,22 @@ def _fmt_module_summary(mod) -> str:
 
     if mod.signals:
         lines.append(f"- 信号 ({len(mod.signals)}):")
+        # 构建 resolved 信号查找表
+        resolved_map = {}
+        if resolved_signals:
+            for rs in resolved_signals:
+                resolved_map[rs.name] = rs
         for s in mod.signals[:20]:
             width = f" {s.width_range}" if s.width_range else ""
             signed = " signed" if s.signed else ""
-            lines.append(f"  - {s.var_type}{signed}{width} {s.name}")
+            rs = resolved_map.get(s.name)
+            if rs and rs.resolved_width and rs.resolved_width != str(s.width_range):
+                lines.append(
+                    f"  - {s.var_type}{signed}{width} {s.name}"
+                    f"  [pyslang: {rs.resolved_width}]"
+                )
+            else:
+                lines.append(f"  - {s.var_type}{signed}{width} {s.name}")
         if len(mod.signals) > 20:
             lines.append(f"  - ... 还有 {len(mod.signals) - 20} 个信号")
 
@@ -134,11 +150,20 @@ def _fmt_signal_results(results: list) -> str:
     return "\n".join(lines)
 
 
-def _do_get_hierarchy(index_store: IndexStore, module_name: str, max_depth: int = 5) -> str:
+def _do_get_hierarchy(index_store: IndexStore, module_name: str, max_depth: int = 5, include_elab: bool = False) -> str:
     """构建模块层次树"""
     visited = set()
 
-    def _build_tree(mod_name: str, depth: int = 0, indent: str = "") -> list[str]:
+    # 获取 pyslang elaborated 实例
+    elab_instances = []
+    if include_elab:
+        elab_instances = index_store.get_elab_instances()
+    elab_by_parent: dict[str, list] = {}
+    for inst in elab_instances:
+        parent = inst.parent_module or module_name
+        elab_by_parent.setdefault(parent, []).append(inst)
+
+    def _build_tree(mod_name: str, depth: int = 0, indent: str = "", parent_name: str = "") -> list[str]:
         if depth > max_depth:
             return [f"{indent}└─ ... (已达最大深度 {max_depth})"]
         if mod_name in visited:
@@ -156,6 +181,8 @@ def _do_get_hierarchy(index_store: IndexStore, module_name: str, max_depth: int 
             lines.append(f"{indent}└─ {mod.name}")
 
         children_indent = indent + ("   " if depth == 0 else "│  ")
+
+        # 先显示 tree-sitter 提取的实例
         for i, inst in enumerate(mod.instances):
             is_last = (i == len(mod.instances) - 1)
             conn_prefix = children_indent + ("└─ " if is_last else "├─ ")
@@ -164,12 +191,22 @@ def _do_get_hierarchy(index_store: IndexStore, module_name: str, max_depth: int 
             if target_mod:
                 lines.append(f"{conn_prefix}{inst.instance_name} → {inst.module_type}")
                 next_indent = children_indent + ("   " if is_last else "│  ")
-                sub_lines = _build_tree(inst.module_type, depth + 1, next_indent)
+                sub_lines = _build_tree(inst.module_type, depth + 1, next_indent, mod_name)
                 if sub_lines:
                     sub_lines[0] = f"{next_indent}├─ {target_mod.name} ({len(target_mod.ports)} ports)"
                     lines.extend(sub_lines[1:])
             else:
                 lines.append(f"{conn_prefix}{inst.instance_name} → {inst.module_type} [?]")
+
+        # 显示 pyslang generate 展开实例
+        if include_elab and mod_name in elab_by_parent:
+            gen_insts = [e for e in elab_by_parent[mod_name] if e.is_generated]
+            if gen_insts:
+                lines.append(f"{children_indent}├─ [pyslang generate 展开]:")
+                for gi in gen_insts[:10]:
+                    lines.append(f"{children_indent}│  └─ {gi.hierarchical_path} → {gi.module_type}")
+                if len(gen_insts) > 10:
+                    lines.append(f"{children_indent}│     ... 还有 {len(gen_insts) - 10} 个展开实例")
 
         visited.remove(mod_name)
         return lines
@@ -215,15 +252,18 @@ def register_tools(mcp, index_store: IndexStore):
 
         Returns:
             模块的完整信息（端口、参数、例化、信号、always、assign）
+            如果 pyslang elaboration 可用，信号显示 resolved 位宽
         """
         try:
             mod = _do_get_module(index_store, module_name)
-            return _fmt_module_summary(mod)
+            resolved_signals = index_store.get_resolved_signals(module_name)
+            return _fmt_module_summary(mod, resolved_signals)
         except ModuleNotFoundError:
             results = _do_search_module(index_store, module_name)
             if results:
                 mod = results[0]
-                return f"未找到精确匹配 '{module_name}'，显示最接近的 '{mod.name}':\n\n" + _fmt_module_summary(mod)
+                resolved_signals = index_store.get_resolved_signals(mod.name)
+                return f"未找到精确匹配 '{module_name}'，显示最接近的 '{mod.name}':\n\n" + _fmt_module_summary(mod, resolved_signals)
             return f"未找到模块 '{module_name}'"
 
     @mcp.tool()
@@ -312,20 +352,22 @@ def register_tools(mcp, index_store: IndexStore):
         return _fmt_signal_results(results)
 
     @mcp.tool()
-    def rtl_hierarchy(module_name: str, max_depth: int = 5) -> str:
+    def rtl_hierarchy(module_name: str, max_depth: int = 5, include_elab: bool = False) -> str:
         """
         显示模块例化层次树
 
-        递归展开模块的子模块例化，构建模块层次结构
+        递归展开模块的子模块例化，构建模块层次结构。
+        当 pyslang elaboration 数据可用时，可显示 generate 展开实例。
 
         Args:
             module_name: 顶层模块名
             max_depth: 最大展开深度（默认 5）
+            include_elab: 是否包含 pyslang generate 展开实例（默认 False）
 
         Returns:
             树状层次结构
         """
         try:
-            return _do_get_hierarchy(index_store, module_name, max_depth)
+            return _do_get_hierarchy(index_store, module_name, max_depth, include_elab)
         except ModuleNotFoundError:
             return f"未找到模块 '{module_name}'"

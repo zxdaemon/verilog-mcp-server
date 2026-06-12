@@ -187,12 +187,14 @@ class TestClockTree:
 
     def test_mermaid_output_format(self):
         from verilog_mcp_server.analysis.clock_tree import ClockTreeBuilder
+        from verilog_mcp_server.analysis.visualizer import clock_tree_to_graph, graph_to_mermaid
         store = make_clock_tree_store()
         builder = ClockTreeBuilder(store)
         result = builder.build("soc")
-        mm = builder.format_mermaid(result)
+        graph = clock_tree_to_graph(result)
+        mm = graph_to_mermaid(graph)
 
-        assert mm.startswith("flowchart TD")
+        assert "flowchart TD" in mm
         assert "subgraph" in mm
         assert "sys_clk" in mm
 
@@ -246,3 +248,72 @@ class TestAlwaysClassification:
         # The FSM block is sequential with a clock
         for b in result.sequential_blocks:
             assert "posedge" in b.sensitivity or "negedge" in b.sensitivity
+
+
+def make_port_dataflow_store() -> IndexStore:
+    """创建用于测试 rtl_port_dataflow 的 IndexStore"""
+    store = IndexStore()
+    store.add_module(ModuleDef(
+        name="dut", file_path="dut.v", line_start=1, line_end=30,
+        ports=[
+            PortDef(name="clk", direction="input"),
+            PortDef(name="data_out", direction="output", var_type="reg"),
+        ],
+        signals=[
+            SignalDef(name="data_out", var_type="reg"),
+            SignalDef(name="data_out_next", var_type="reg"),
+        ],
+        always_blocks=[
+            AlwaysBlockInfo(
+                sensitivity_list="posedge clk",
+                block_type="sequential",
+                statements=["data_out <= data_out_next;"],
+            ),
+        ],
+    ))
+    store.add_module(ModuleDef(
+        name="no_port", file_path="no_port.v", line_start=1, line_end=10,
+        ports=[PortDef(name="clk", direction="input")],
+    ))
+    return store
+
+
+class TestPortDataflow:
+    def test_port_dataflow_normal_path(self):
+        """rtl_port_dataflow 正常路径不崩溃"""
+        from mcp.server.fastmcp import FastMCP
+        from verilog_mcp_server.tools.level3_analysis import register_tools
+
+        store = make_port_dataflow_store()
+        mcp = FastMCP("test")
+        register_tools(mcp, store)
+
+        tool_fn = None
+        for tool_info in mcp._tool_manager._tools.values():
+            if tool_info.name == "rtl_port_dataflow":
+                tool_fn = tool_info.fn
+                break
+
+        assert tool_fn is not None
+        result = tool_fn(module_name="dut", port_name="data_out")
+        assert "data_out" in result
+        assert "端口数据流" in result
+
+    def test_port_dataflow_no_port(self):
+        """rtl_port_dataflow 端口不存在时不崩溃"""
+        from mcp.server.fastmcp import FastMCP
+        from verilog_mcp_server.tools.level3_analysis import register_tools
+
+        store = make_port_dataflow_store()
+        mcp = FastMCP("test")
+        register_tools(mcp, store)
+
+        tool_fn = None
+        for tool_info in mcp._tool_manager._tools.values():
+            if tool_info.name == "rtl_port_dataflow":
+                tool_fn = tool_info.fn
+                break
+
+        result = tool_fn(module_name="no_port", port_name="nonexistent")
+        # 不应崩溃，应返回提示信息
+        assert "端口数据流" in result or "ℹ️" in result or "未追踪" in result

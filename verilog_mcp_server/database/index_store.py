@@ -1,21 +1,30 @@
 """
-索引存储 — SQLite 后端 + 内存缓存
+索引存储 — SQLite 后端 + 懒加载内存缓存
 """
 
 from __future__ import annotations
+import bisect
 import json
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
-from .models import ModuleDef, TypeDef
+from .models import (
+    ModuleDef, PortDef, TypeDef,
+    ElaboratedInstanceDef, ResolvedSignalDef,
+    MacroExpansionInfo, ElaborationReport,
+)
 from .sqlite_backend import SQLiteBackend
 
 logger = logging.getLogger(__name__)
 
 
 class IndexStore:
-    """模块索引存储，SQLite 持久化 + 内存缓存"""
+    """模块索引存储，SQLite 持久化 + 懒加载缓存
+
+    启动时仅加载轻量元数据（名称、文件路径、行号范围、端口名），
+    完整模块详情（信号、例化、always 块等）在首次访问时从 SQLite 加载。
+    """
 
     def __init__(self, cache_path: Optional[str] = None, db_path: Optional[str] = None):
         # db_path 优先，否则从 cache_path 推导
@@ -27,37 +36,109 @@ class IndexStore:
         else:
             self.cache_path = cache_path
 
-        # 内存缓存 — 加速热路径查询
+        # 内存缓存 — 完整模块对象
         self._cache: dict[str, ModuleDef] = {}
+        # 轻量元数据 — 启动时加载: {name: (file_path, line_start, line_end)}
+        self._meta: dict[str, tuple[str, int, int]] = {}
+        # 文件 → 模块名列表
         self._files: dict[str, list[str]] = {}
-        self._module_by_file_line: dict[str, dict[int, str]] = {}
+        # 文件行号 → 模块映射：{file_path: [(line_start, line_end, module_name), ...]}
+        self._module_ranges: dict[str, list[tuple[int, int, str]]] = {}
+        self._range_keys: dict[str, list[int]] = {}
+        # 信号索引（端口名 + 信号名）
         self._signal_index: dict[str, list[tuple[str, str]]] = {}
         self._types: dict[str, TypeDef] = {}
+        # 已加载完整数据的模块名集合
+        self._loaded: set[str] = set()
+        # Elaboration 数据内存缓存
+        self._elab_cache: dict[str, Any] = {}
 
-        # 如果有 SQLite，从 DB 加载到缓存
+        # 如果有 SQLite，从 DB 加载轻量元数据
         if self._db:
-            self._load_from_db()
+            self._load_metadata()
 
-    def _load_from_db(self) -> None:
-        """从 SQLite 加载所有数据到内存缓存"""
-        for mod in self._db.load_all_modules():
-            self._add_to_cache(mod)
+    def _load_metadata(self) -> None:
+        """从 SQLite 加载轻量元数据（不加载 JSON 字段）"""
+        cur = self._db._conn.execute(
+            "SELECT name, file_path, line_start, line_end, ports_json FROM modules"
+        )
+        for row in cur.fetchall():
+            name, file_path, line_start, line_end, ports_json = row
+            self._meta[name] = (file_path, line_start, line_end)
+
+            # 文件映射
+            self._files.setdefault(file_path, [])
+            if name not in self._files[file_path]:
+                self._files[file_path].append(name)
+
+            # 行号范围索引
+            self._module_ranges.setdefault(file_path, [])
+            self._range_keys.setdefault(file_path, [])
+            entry = (line_start, line_end, name)
+            idx = bisect.bisect_left(self._range_keys[file_path], line_start)
+            self._module_ranges[file_path].insert(idx, entry)
+            self._range_keys[file_path].insert(idx, line_start)
+
+            # 端口名索引（从 ports_json 提取，不解析完整模块）
+            if ports_json:
+                try:
+                    ports = json.loads(ports_json)
+                    for p in ports:
+                        pname = p.get("name", "")
+                        if pname:
+                            self._signal_index.setdefault(pname, [])
+                            entry = (name, pname)
+                            if entry not in self._signal_index[pname]:
+                                self._signal_index[pname].append(entry)
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+        # 加载类型
         for td in self._db.load_all_types():
             self._types[td.name] = td
-        logger.info(f"已从 SQLite 加载 {len(self._cache)} 个模块")
+
+        logger.info(f"已从 SQLite 加载 {len(self._meta)} 个模块元数据")
+
+    def _ensure_loaded(self, name: str) -> Optional[ModuleDef]:
+        """确保模块完整数据已加载，返回模块对象"""
+        if name in self._cache:
+            return self._cache[name]
+        if not self._db:
+            return None
+        mod = self._db.load_module(name)
+        if mod:
+            self._cache[name] = mod
+            self._loaded.add(name)
+            # 补充信号索引（仅端口已在 _load_metadata 中加载）
+            for sig in mod.signals:
+                self._signal_index.setdefault(sig.name, [])
+                entry = (mod.name, sig.name)
+                if entry not in self._signal_index[sig.name]:
+                    self._signal_index[sig.name].append(entry)
+        return mod
 
     def _add_to_cache(self, module: ModuleDef) -> None:
         """将模块添加到内存缓存（不写 DB）"""
         self._cache[module.name] = module
+        self._loaded.add(module.name)
+
+        # 更新元数据
+        self._meta[module.name] = (module.file_path, module.line_start, module.line_end)
 
         self._files.setdefault(module.file_path, [])
         if module.name not in self._files[module.file_path]:
             self._files[module.file_path].append(module.name)
 
-        self._module_by_file_line.setdefault(module.file_path, {})
-        for line in range(module.line_start, module.line_end + 1):
-            self._module_by_file_line[module.file_path][line] = module.name
+        # 行号范围索引
+        fp = module.file_path
+        self._module_ranges.setdefault(fp, [])
+        self._range_keys.setdefault(fp, [])
+        entry = (module.line_start, module.line_end, module.name)
+        idx = bisect.bisect_left(self._range_keys[fp], module.line_start)
+        self._module_ranges[fp].insert(idx, entry)
+        self._range_keys[fp].insert(idx, module.line_start)
 
+        # 信号索引
         for sig in module.signals:
             self._signal_index.setdefault(sig.name, [])
             entry = (module.name, sig.name)
@@ -72,17 +153,23 @@ class IndexStore:
     def _remove_from_cache(self, module_name: str) -> None:
         """从内存缓存中移除模块"""
         mod = self._cache.pop(module_name, None)
-        if not mod:
+        self._loaded.discard(module_name)
+        meta = self._meta.pop(module_name, None)
+        if not mod and not meta:
             return
-        if mod.file_path in self._files:
-            self._files[mod.file_path] = [
-                n for n in self._files[mod.file_path] if n != module_name
+        file_path = mod.file_path if mod else (meta[0] if meta else None)
+        if file_path and file_path in self._files:
+            self._files[file_path] = [
+                n for n in self._files[file_path] if n != module_name
             ]
-            if not self._files[mod.file_path]:
-                del self._files[mod.file_path]
-        if mod.file_path in self._module_by_file_line:
-            for line in range(mod.line_start, mod.line_end + 1):
-                self._module_by_file_line[mod.file_path].pop(line, None)
+            if not self._files[file_path]:
+                del self._files[file_path]
+        # 从范围索引中移除
+        if file_path and file_path in self._module_ranges:
+            self._module_ranges[file_path] = [
+                (s, e, n) for s, e, n in self._module_ranges[file_path] if n != module_name
+            ]
+            self._range_keys[file_path] = [s for s, e, n in self._module_ranges[file_path]]
         for sig_name, entries in list(self._signal_index.items()):
             self._signal_index[sig_name] = [
                 e for e in entries if e[0] != module_name
@@ -94,66 +181,70 @@ class IndexStore:
 
     def add_module(self, module: ModuleDef) -> None:
         """添加或更新模块定义（写入 SQLite + 缓存）"""
-        # 先从缓存移除旧版本
         self._remove_from_cache(module.name)
-        # 写入 SQLite
         if self._db:
             self._db.save_module(module)
-        # 写入缓存
         self._add_to_cache(module)
 
     def get_module(self, name: str) -> Optional[ModuleDef]:
-        """按名称获取模块（缓存优先）"""
-        if name in self._cache:
-            return self._cache[name]
-        if self._db:
-            mod = self._db.load_module(name)
-            if mod:
-                self._cache[name] = mod
-            return mod
-        return None
+        """按名称获取模块（懒加载）"""
+        return self._ensure_loaded(name)
 
     def get_all_modules(self) -> list[ModuleDef]:
-        """获取所有模块"""
-        if self._db and not self._cache:
-            return self._db.load_all_modules()
+        """获取所有模块（批量加载，避免 N+1 查询）"""
+        if self._db:
+            all_mods = self._db.load_all_modules()
+            for mod in all_mods:
+                self._add_to_cache(mod)
         return list(self._cache.values())
 
     def get_module_names(self) -> list[str]:
-        """获取所有模块名"""
-        if self._db and not self._cache:
-            return self._db.load_module_names()
-        return list(self._cache.keys())
+        """获取所有模块名（不触发全量加载）"""
+        return list(self._meta.keys())
+
+    def find_instantiators(self, module_name: str) -> list[str]:
+        """查找例化了指定模块的所有父模块名（大小写不敏感）"""
+        name_lower = module_name.lower()
+        results = []
+        for mod_name, meta in self._meta.items():
+            mod = self._ensure_loaded(mod_name)
+            if mod:
+                for inst in mod.instances:
+                    if inst.module_type.lower() == name_lower:
+                        results.append(mod.name)
+                        break
+        return results
 
     def get_modules_for_file(self, file_path: str) -> list[ModuleDef]:
-        """获取某个文件中的所有模块"""
+        """获取某个文件中的所有模块（懒加载）"""
         names = self._files.get(file_path, [])
-        return [self._cache[n] for n in names if n in self._cache]
+        result = []
+        for n in names:
+            mod = self._ensure_loaded(n)
+            if mod:
+                result.append(mod)
+        return result
 
     def has_module(self, name: str) -> bool:
-        if name in self._cache:
-            return True
-        if self._db:
-            return self._db.load_module(name) is not None
-        return False
+        return name in self._meta
 
     @property
     def module_count(self) -> int:
-        if self._db and not self._cache:
-            return self._db.get_module_count()
-        return len(self._cache)
+        return len(self._meta)
 
     # ── Search Operations ──
 
     def search_modules(self, pattern: str) -> list[ModuleDef]:
-        """模糊搜索模块名（大小写不敏感）"""
+        """模糊搜索模块名（大小写不敏感，不触发全量加载）"""
         if self._db:
             return self._db.search_modules(pattern.lower())
         pattern_lower = pattern.lower()
         results = []
-        for name, mod in self._cache.items():
+        for name in self._meta:
             if pattern_lower in name.lower():
-                results.append(mod)
+                mod = self._ensure_loaded(name)
+                if mod:
+                    results.append(mod)
         results.sort(key=lambda m: (m.name.lower() != pattern_lower, m.name))
         return results
 
@@ -164,14 +255,14 @@ class IndexStore:
             # 精确匹配
             entries = self._db.search_signal_index(signal_name, module_name)
             for mod_name, sig_name in entries:
-                mod = self.get_module(mod_name)
+                mod = self._ensure_loaded(mod_name)
                 if mod:
                     results.append((mod, sig_name))
             # 模糊匹配
             if not results:
                 entries = self._db.search_signal_index_fuzzy(signal_name.lower(), module_name)
                 for mod_name, sig_name in entries:
-                    mod = self.get_module(mod_name)
+                    mod = self._ensure_loaded(mod_name)
                     if mod:
                         results.append((mod, sig_name))
         else:
@@ -179,7 +270,7 @@ class IndexStore:
             for mod_name, sig_name in self._signal_index.get(signal_name, []):
                 if module_name and mod_name != module_name:
                     continue
-                mod = self._cache.get(mod_name)
+                mod = self._ensure_loaded(mod_name)
                 if mod:
                     results.append((mod, sig_name))
             if not results:
@@ -188,28 +279,38 @@ class IndexStore:
                         for mod_name, sig_name in entries:
                             if module_name and mod_name != module_name:
                                 continue
-                            mod = self._cache.get(mod_name)
+                            mod = self._ensure_loaded(mod_name)
                             if mod:
                                 results.append((mod, sig_name))
         return results
 
     def get_module_for_line(self, file_path: str, line: int) -> Optional[ModuleDef]:
-        """根据文件路径和行号查找包含该行的模块"""
-        file_map = self._module_by_file_line.get(file_path, {})
-        name = file_map.get(line)
-        return self._cache.get(name) if name else None
+        """根据文件路径和行号查找包含该行的模块（二分查找）"""
+        ranges = self._module_ranges.get(file_path)
+        if not ranges:
+            return None
+        keys = self._range_keys.get(file_path, [])
+        idx = bisect.bisect_right(keys, line) - 1
+        if idx < 0:
+            return None
+        start, end, name = ranges[idx]
+        if start <= line <= end:
+            return self._ensure_loaded(name)
+        return None
 
     # ── Persistence ──
 
     def save(self, path: Optional[str] = None) -> None:
         """保存索引（SQLite 自动持久化，此方法为兼容接口）"""
         if self._db:
-            logger.info(f"SQLite 索引已持久化 ({len(self._cache)} 个模块)")
+            logger.info(f"SQLite 索引已持久化 ({len(self._meta)} 个模块)")
             return
         # 无 SQLite 时 fallback 到 JSON
         save_path = path or self.cache_path
         if not save_path:
             return
+        # 确保所有模块已加载
+        self.get_all_modules()
         data = {
             "modules": {name: mod.to_dict() for name, mod in self._cache.items()},
             "files": self._files,
@@ -222,8 +323,8 @@ class IndexStore:
     def load(self, path: Optional[str] = None) -> bool:
         """加载索引（SQLite 自动加载，此方法为兼容接口）"""
         if self._db:
-            self._load_from_db()
-            return bool(self._cache)
+            self._load_metadata()
+            return bool(self._meta)
         # 无 SQLite 时 fallback 到 JSON
         load_path = path or self.cache_path
         if not load_path or not Path(load_path).exists():
@@ -243,7 +344,6 @@ class IndexStore:
         """删除某文件的所有模块和索引"""
         if self._db:
             self._db.delete_modules_by_file(file_path)
-        # 清理缓存
         names = list(self._files.get(file_path, []))
         for name in names:
             self._remove_from_cache(name)
@@ -251,7 +351,7 @@ class IndexStore:
     # ── JSON Migration ──
 
     def migrate_from_json(self, json_path: str) -> bool:
-        """从旧版 JSON 缓存迁移数据到 SQLite"""
+        """从旧版 JSON 缓存迁移到 SQLite"""
         if not self._db:
             logger.warning("无 SQLite 后端，无法迁移")
             return False
@@ -270,6 +370,7 @@ class IndexStore:
 
     def save_json(self, path: str) -> None:
         """导出为 JSON（调试用）"""
+        self.get_all_modules()
         data = {
             "modules": {name: mod.to_dict() for name, mod in self._cache.items()},
             "files": self._files,
@@ -315,10 +416,79 @@ class IndexStore:
     def clear(self) -> None:
         """清除所有索引"""
         self._cache.clear()
+        self._meta.clear()
         self._files.clear()
-        self._module_by_file_line.clear()
+        self._module_ranges.clear()
+        self._range_keys.clear()
         self._signal_index.clear()
         self._types.clear()
+        self._loaded.clear()
+        self._elab_cache: dict[str, Any] = {}
         if self._db:
             self._db.clear_all()
         logger.info("索引已清除")
+
+    # ── Elaboration Data Operations ──
+
+    def save_elab_instances(self, instances: list[ElaboratedInstanceDef]) -> None:
+        """批量保存 elaborated 实例"""
+        if not self._db:
+            return
+        self._db.clear_elaborated_instances()
+        for inst in instances:
+            self._db.save_elaborated_instance(inst)
+        logger.info(f"已保存 {len(instances)} 个 elaborated 实例")
+
+    def get_elab_instances(self, module_type: str | None = None) -> list[ElaboratedInstanceDef]:
+        """获取 elaborated 实例"""
+        if not self._db:
+            return []
+        if module_type:
+            return self._db.get_elaborated_instances_by_module(module_type)
+        return self._db.get_all_elaborated_instances()
+
+    def save_resolved_signals(self, signals: list[ResolvedSignalDef]) -> None:
+        """批量保存参数求值后的信号"""
+        if not self._db:
+            return
+        self._db.clear_resolved_signals()
+        for sig in signals:
+            self._db.save_resolved_signal(sig)
+        logger.info(f"已保存 {len(signals)} 个 resolved 信号")
+
+    def get_resolved_signals(self, module_name: str | None = None) -> list[ResolvedSignalDef]:
+        """获取参数求值后的信号"""
+        if not self._db:
+            return []
+        if module_name:
+            return self._db.get_resolved_signals_by_module(module_name)
+        return self._db.get_all_resolved_signals()
+
+    def save_elab_report(self, report: ElaborationReport) -> int:
+        """保存 elaboration 报告"""
+        if not self._db:
+            return 0
+        report_id = self._db.save_elaboration_report(report)
+        self._elab_cache["latest_report"] = report
+        logger.info(f"已保存 elaboration 报告 (id={report_id})")
+        return report_id
+
+    def get_elab_report(self) -> ElaborationReport | None:
+        """获取最新 elaboration 报告"""
+        if "latest_report" in getattr(self, "_elab_cache", {}):
+            return self._elab_cache["latest_report"]
+        if not self._db:
+            return None
+        return self._db.get_latest_elaboration_report()
+
+    def clear_elab_data(self) -> None:
+        """清除所有 elaboration 数据"""
+        if not self._db:
+            return
+        self._db.clear_elaborated_instances()
+        self._db.clear_resolved_signals()
+        self._db.clear_macro_expansions()
+        self._db.clear_elaboration_reports()
+        if hasattr(self, "_elab_cache"):
+            self._elab_cache.clear()
+        logger.info("elaboration 数据已清除")

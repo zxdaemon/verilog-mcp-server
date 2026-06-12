@@ -80,6 +80,10 @@ class FSMDetector:
         """
         检测指定模块中的所有有限状态机
 
+        合并两种检测方法：
+        1. case+next_state 模式检测（传统方法）
+        2. 寄存器+分支模式检测（支持 one-hot、if-else 链）
+
         算法：
         1. 找出所有时序 always 块（posedge 敏感）
         2. 从时序块推断状态寄存器（被赋值且带有 next_state 信号的寄存器）
@@ -94,16 +98,25 @@ class FSMDetector:
         sequential_blocks = self._find_sequential_blocks(mod)
         combinational_blocks = self._find_combinational_blocks(mod)
 
-        # 从时序块推断状态寄存器候选
+        # 方法1: case+next_state 模式
         state_reg_candidates = self._find_state_reg_candidates(
             mod, sequential_blocks
         )
 
         fsms: list[FSM] = []
+        seen_regs: set[str] = set()
         for state_reg in state_reg_candidates:
             fsm = self._build_fsm(mod, state_reg, sequential_blocks, combinational_blocks)
             if fsm:
                 fsms.append(fsm)
+                seen_regs.add(state_reg)
+
+        # 方法2: 寄存器+分支模式（非 case）
+        register_fsms = self._detect_fsm_by_register(mod)
+        for fsm in register_fsms:
+            if fsm.state_register not in seen_regs:
+                fsms.append(fsm)
+                seen_regs.add(fsm.state_register)
 
         return FSMResult(fsm_count=len(fsms), fsms=fsms)
 
@@ -175,6 +188,245 @@ class FSMDetector:
                         candidates.add(sig.name)
 
         return list(candidates)
+
+    def _detect_fsm_by_register(
+        self, mod: ModuleDef
+    ) -> list[FSM]:
+        """基于寄存器识别的 FSM 检测（不依赖 case 语句）
+
+        检测 one-hot 直接赋值、二进制编码 if-else 链等模式。
+
+        算法：
+        1. 扫描时序 always 块，找到被非复位条件赋值的寄存器
+        2. 检查该寄存器是否在组合逻辑中被读取（条件判断或赋值 RHS）
+        3. 检查组合逻辑是否有分支行为（if-else 或 case）
+        4. 从赋值中提取状态值，排除计数器/移位寄存器模式
+        """
+        sequential_blocks = self._find_sequential_blocks(mod)
+        combinational_blocks = self._find_combinational_blocks(mod)
+
+        if not sequential_blocks:
+            return []
+
+        # Allow FSMs with only sequential blocks (e.g. binary encoded in always_ff)
+
+        # 步骤1: 找到时序块中赋值的寄存器
+        seq_assigned_regs: set[str] = set()
+        for block in sequential_blocks:
+            text = self._get_block_text(block)
+            if not text:
+                continue
+            # 匹配 reg <= value 模式，过滤复位赋值
+            for m in re.finditer(
+                r'\b(\w+)\s*<\s*=\s*([^;\n]+)',
+                text
+            ):
+                reg_name = m.group(1)
+                # 排除复位赋值：检查整行是否包含 rst 或赋值为 0
+                line_start = text.rfind('\n', 0, m.start()) + 1
+                line = text[line_start:m.end()]
+                line_lower = line.lower()
+                if 'rst' in line_lower:
+                    continue
+                if re.search(r"\b0+'?[bdh]?0+\b", line):
+                    continue
+                seq_assigned_regs.add(reg_name)
+
+        # 步骤2: 检查寄存器在组合逻辑或时序逻辑中的读取
+        fsms: list[FSM] = []
+        for reg_name in seq_assigned_regs:
+            # 查找组合块中是否读取该寄存器
+            is_read_in_comb = False
+            branch_states: set[str] = set()
+
+            # 先检查组合块
+            for block in combinational_blocks:
+                text = self._get_block_text(block)
+                if not text:
+                    continue
+                # 检查是否在 if/else if 条件中读取
+                if re.search(rf'\bif\s*\([^)]*\b{re.escape(reg_name)}\b', text):
+                    is_read_in_comb = True
+                    # 提取分支中的赋值状态值
+                    for m in re.finditer(
+                        rf'{re.escape(reg_name)}\s*<\s*=\s*([^;\n]+)',
+                        text
+                    ):
+                        state_val = m.group(1).strip()
+                        if self._is_valid_state_value(state_val):
+                            branch_states.add(state_val)
+                    for m in re.finditer(
+                        rf'{re.escape(reg_name)}\s*=\s*([^;\n]+)',
+                        text
+                    ):
+                        state_val = m.group(1).strip()
+                        if self._is_valid_state_value(state_val):
+                            branch_states.add(state_val)
+
+            # 如果没有组合块，也检查时序块中的分支行为
+            if not is_read_in_comb:
+                for block in sequential_blocks:
+                    text = self._get_block_text(block)
+                    if not text:
+                        continue
+                    # 检查时序块中是否有基于该寄存器的 if-else 分支
+                    if re.search(rf'\bif\s*\([^)]*\b{re.escape(reg_name)}\b', text):
+                        is_read_in_comb = True
+                        for m in re.finditer(
+                            rf'{re.escape(reg_name)}\s*<\s*=\s*([^;\n]+)',
+                            text
+                        ):
+                            line_start = text.rfind('\n', 0, m.start()) + 1
+                            line = text[line_start:m.end()]
+                            if 'rst' not in line.lower():
+                                state_val = m.group(1).strip()
+                                if self._is_valid_state_value(state_val):
+                                    branch_states.add(state_val)
+
+            # 步骤3: 过滤计数器和移位寄存器
+            if is_read_in_comb and self._is_fsm_pattern(reg_name, branch_states):
+                # 步骤4: 构建 FSM
+                blocks_to_search = combinational_blocks if combinational_blocks else sequential_blocks
+                fsm = self._build_fsm_from_register(
+                    mod, reg_name, blocks_to_search, branch_states
+                )
+                if fsm and len(fsm.states) >= 2:
+                    fsms.append(fsm)
+
+        return fsms
+
+    def _is_valid_state_value(self, value: str) -> bool:
+        """检查赋值右侧是否为有效的状态值"""
+        value = value.strip()
+        # 排除算术表达式（计数器模式）
+        if re.search(r'[\+\-\*\/]', value):
+            return False
+        # 排除移位操作（移位寄存器）
+        if re.search(r'<<|>>', value):
+            return False
+        # 排除变量引用（非立即数状态）
+        if re.match(r'^[a-zA-Z_]\w*$', value):
+            return True  # 符号状态名
+        # 数字常量
+        if re.match(r"^\d+'[bdho][\dabcdefxz?]+$", value, re.I):
+            return True
+        # 二进制/十六进制字面量
+        if re.match(r"^[01'xbz?]+$", value, re.I):
+            return True
+        return False
+
+    def _is_fsm_pattern(self, reg_name: str, branch_states: set[str]) -> bool:
+        """排除计数器和移位寄存器模式"""
+        if len(branch_states) < 2:
+            return False
+        # 检查是否所有状态值都是连续整数（计数器特征）
+        numeric_states = []
+        for s in branch_states:
+            m = re.match(r"(\d+)'[bdho]([\dabcdef]+)$", s, re.I)
+            if m:
+                try:
+                    base = {"b": 2, "d": 10, "h": 16, "o": 8}.get(m.group(1).lower(), 10)
+                    numeric_states.append(int(m.group(2), base))
+                except ValueError:
+                    pass
+        if len(numeric_states) == len(branch_states) and len(numeric_states) >= 2:
+            numeric_states.sort()
+            # 如果是连续整数，可能是计数器
+            is_consecutive = all(
+                numeric_states[i] + 1 == numeric_states[i + 1]
+                for i in range(len(numeric_states) - 1)
+            )
+            if is_consecutive and len(numeric_states) > 4:
+                return False
+        return True
+
+    def _build_fsm_from_register(
+        self,
+        mod: ModuleDef,
+        reg_name: str,
+        combinational_blocks: list[AlwaysBlockInfo],
+        branch_states: set[str],
+    ) -> Optional[FSM]:
+        """从寄存器和分支状态构建 FSM"""
+        state_names = sorted(branch_states)
+        transitions: list[Transition] = []
+
+        # 从组合块中提取转移条件
+        for block in combinational_blocks:
+            text = self._get_block_text(block)
+            if not text:
+                continue
+            # 查找 if 分支中的状态赋值
+            for m in re.finditer(
+                rf'\bif\s*\(([^)]+)\)[^;]*?{re.escape(reg_name)}\s*<\s*=\s*([^;\n]+)',
+                text, re.DOTALL
+            ):
+                cond = m.group(1).strip()
+                to_state = m.group(2).strip()
+                if to_state in state_names:
+                    transitions.append(Transition(
+                        from_state="", to_state=to_state, condition=cond,
+                    ))
+            # 查找 else 分支中的状态赋值
+            for m in re.finditer(
+                rf'{re.escape(reg_name)}\s*<\s*=\s*([^;\n]+)',
+                text
+            ):
+                to_state = m.group(1).strip()
+                if to_state in state_names:
+                    transitions.append(Transition(
+                        from_state="", to_state=to_state, condition="",
+                    ))
+
+        # 检测编码风格
+        encoding = self._detect_encoding_from_states(state_names)
+
+        # 检测 Mealy/Moore
+        is_mealy = False
+        for block in combinational_blocks:
+            text = self._get_block_text(block)
+            if text and reg_name in text:
+                # 检查是否有输出赋值与状态相关
+                for m in re.finditer(r'\b(\w+)\s*=\s*([^;\n]+)', text):
+                    rhs = m.group(2)
+                    if reg_name in rhs:
+                        is_mealy = True
+                        break
+
+        return FSM(
+            name=f"{reg_name}_fsm",
+            module_name=mod.name,
+            state_register=reg_name,
+            next_state_signal=f"next_{reg_name}",
+            encoding=encoding,
+            states=state_names,
+            transitions=transitions,
+            is_mealy=is_mealy,
+            is_moore=not is_mealy,
+        )
+
+    def _detect_encoding_from_states(self, state_names: list[str]) -> str:
+        """从状态值检测编码风格"""
+        if not state_names:
+            return "unknown"
+        # 检查 one-hot 特征
+        one_hot_count = 0
+        for s in state_names:
+            m = re.match(r"(\d+)'b([01]+)$", s, re.I)
+            if m:
+                bits = m.group(2)
+                if bits.count('1') == 1:
+                    one_hot_count += 1
+        if one_hot_count == len(state_names) and len(state_names) >= 2:
+            return "one_hot"
+        # 检查二进制编码
+        binary_count = 0
+        for s in state_names:
+            if re.match(r"^\d+'[bdh][\dabcdef]+$", s, re.I):
+                binary_count += 1
+        if binary_count == len(state_names):
+            return "binary"
+        return "symbolic"
 
     def _find_all_case_exprs_in_blocks(
         self, blocks: list[AlwaysBlockInfo]
@@ -413,6 +665,7 @@ class FSMDetector:
             if sig.name == name:
                 return sig
         return None
+
 
 
 # ── 便捷函数 ──

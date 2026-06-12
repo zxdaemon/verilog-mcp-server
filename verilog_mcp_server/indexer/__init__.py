@@ -8,9 +8,9 @@ from .builder import IndexBuilder
 
 __all__ = [
     "ProjectScanner",
-    "VerilogParser",
     "ModuleExtractor",
     "PortExtractor",
     "InstanceExtractor",
     "SignalExtractor",
+    "IndexBuilder",
 ]

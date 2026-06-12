@@ -61,13 +61,19 @@ verilog_mcp_server/        # Python 包（pip install 后可独立使用）
 │   ├── fsm_detector.py    # 通过 case/next_state 模式检测状态机
 │   ├── clock_analyzer.py  # 时钟域分组、复位检测、跨时钟域信号
 │   ├── clock_tree.py      # 时钟域结构图构建
-│   └── always_classify.py # 分类 always 块（时序/组合/锁存器）
+│   ├── always_classify.py # 分类 always 块（时序/组合/锁存器）
+│   └── visualizer.py      # 可视化图谱生成（GraphData 模型、Mermaid 转换、HtmlVisualizer）
 │
 └── tools/                 # MCP 工具注册（基于装饰器，绑定到 FastMCP）
     ├── level1_search.py   # rtl_search_module、rtl_get_module、rtl_module_ports 等
     ├── level2_relation.py # rtl_trace_signal、rtl_signal_fan_in/out、rtl_where_used 等
-    └── level3_analysis.py # rtl_detect_fsm、rtl_clock_domains、rtl_always_classify 等
+    ├── level3_analysis.py # rtl_detect_fsm、rtl_clock_domains、rtl_always_classify 等
+    └── visualize.py       # rtl_visualize 统一可视化工具（Mermaid / HTML）
 ```
+
+## 代码阅读
+
+- **读取代码优先使用 CodeGraph 代码图谱**（`codegraph_*` 系列工具），而非直接 Read/Grep。CodeGraph 基于 tree-sitter AST 解析，提供符号搜索、调用关系、影响分析等结构化查询能力，比文本搜索更快更准确。
 
 ## 关键设计决策
 
@@ -75,4 +81,5 @@ verilog_mcp_server/        # Python 包（pip install 后可独立使用）
 - **SQLite 持久化 + 内存缓存**，数据库文件默认 `.verilog_mcp/cache.db`（工作目录下隐藏文件夹）。启动时自动加载，支持增量构建（仅重新解析变更文件）。
 - **传输方式为 stdio** — 这是一个 MCP 服务器，而非 HTTP 服务器。由 MCP 客户端（Claude Desktop、Claude Code 等）调用。
 - **三级工具设计**：Level 1 = 简单查询（读索引）、Level 2 = 跨模块分析（调用分析引擎）、Level 3 = 智能检测（FSM、时钟域、always 分类）。
+- **可视化图谱**：`rtl_visualize` 工具支持 Mermaid 文本输出（Claude Code 可直接渲染）和交互式 HTML 图谱（vis.js，缩放/拖拽/点击详情）。输出目录 `.verilog_mcp/visualizations/`。
 - **所有数据模型为 dataclass**，位于 `database/models.py`，配合 `to_dict()`/`from_dict()`（JSON 导出）和 `to_row()`/`from_row()`（SQLite 行存储）实现序列化。

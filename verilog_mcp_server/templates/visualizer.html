@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>$title</title>
+$inline_scripts
+<style>
+:root {
+    --bg-root: #f8f9fa;
+    --bg-panel: #ffffff;
+    --accent: #2563eb;
+    --accent-light: #eff3ff;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --border: #e2e8f0;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06);
+    --radius: 8px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-root); color: var(--text); }
+#toolbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 20;
+    display: flex; align-items: center; gap: 6px; padding: 8px 16px; height: 48px;
+    background: var(--bg-panel); border-bottom: 1px solid var(--border); box-shadow: var(--shadow);
+}
+#toolbar button {
+    padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg-panel); color: var(--text); cursor: pointer;
+    font-size: 12.5px; font-weight: 500; line-height: 1.4;
+    transition: all 0.12s; white-space: nowrap;
+}
+#toolbar button:hover:not(:disabled) { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+#toolbar button:disabled { opacity: 0.35; cursor: default; }
+#toolbar .sep { width: 1px; height: 22px; background: var(--border); margin: 0 6px; }
+#toolbar .title { margin-left: 8px; font-size: 14px; font-weight: 600; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#toolbar .spacer { flex: 1; }
+#search-box {
+    padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 12.5px; width: 180px; background: var(--bg-root); color: var(--text);
+    outline: none; transition: border-color 0.12s;
+}
+#search-box:focus { border-color: var(--accent); }
+#search-box::placeholder { color: #94a3b8; }
+#breadcrumb { display: flex; align-items: center; gap: 2px; margin-left: 6px; font-size: 12.5px; color: var(--text-secondary); }
+#breadcrumb a { color: var(--accent); cursor: pointer; text-decoration: none; padding: 2px 5px; border-radius: 4px; }
+#breadcrumb a:hover { background: var(--accent-light); }
+#breadcrumb span.sep { width: auto; height: auto; background: none; margin: 0 1px; }
+#canvas { position: fixed; top: 48px; left: 0; right: 320px; bottom: 0; background: var(--bg-root); }
+#info-panel {
+    position: fixed; top: 48px; right: 0; width: 320px; bottom: 0; z-index: 10;
+    background: rgba(255,255,255,0.82); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-left: 1px solid var(--border); padding: 20px; overflow-y: auto;
+    font-size: 13px; box-shadow: -2px 0 12px rgba(0,0,0,0.04);
+}
+#info-panel h3 { color: var(--accent); margin-bottom: 10px; font-size: 15px; font-weight: 600; }
+#info-panel pre { white-space: pre-wrap; word-break: break-all; line-height: 1.7; color: var(--text-secondary); background: var(--bg-root); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 12px; }
+#info-panel .empty { color: #94a3b8; font-style: italic; font-size: 13px; }
+#info-panel .hint { color: var(--text-secondary); font-size: 12px; margin-top: 10px; padding: 8px 10px; background: #fffbeb; border-radius: 6px; border: 1px solid #fde68a; }
+#legend { position: fixed; bottom: 12px; left: 12px; z-index: 10; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; font-size: 11.5px; box-shadow: var(--shadow); }
+.legend-item { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+.legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+#minimap-container {
+    position: fixed; bottom: 12px; right: 332px; z-index: 10;
+    background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: 0 4px 12px rgba(0,0,0,0.08); overflow: hidden;
+}
+#minimap-canvas { display: block; cursor: pointer; }
+#status-bar { position: fixed; bottom: 0; left: 0; right: 320px; height: 22px; background: var(--bg-panel); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 10px; font-size: 11px; color: var(--text-secondary); z-index: 10; }
+</style>
+</head>
+<body>
+<div id="toolbar">
+    <button id="btn-back" onclick="goUp()" disabled>Back</button>
+    <button id="btn-reset" onclick="resetView()">Reset</button>
+    <span class="sep"></span>
+    <button onclick="cy.fit(undefined, 50)">Fit</button>
+    <button onclick="cy.zoom({ level: cy.zoom() * 1.3, renderedPosition: { x: cy.width()/2, y: cy.height()/2 } })">+</button>
+    <button onclick="cy.zoom({ level: cy.zoom() * 0.7, renderedPosition: { x: cy.width()/2, y: cy.height()/2 } })">-</button>
+    <span class="sep"></span>
+    <button onclick="exportPNG()">PNG</button>
+    <span class="spacer"></span>
+    <input type="search" id="search-box" placeholder="Search nodes..." oninput="onSearchInput()" onkeydown="if(event.key==='Escape'){this.value='';onSearchInput();}">
+    <span class="title">$title</span>
+    <span id="breadcrumb"></span>
+</div>
+<div id="canvas"></div>
+<div id="info-panel">
+    <h3>Node Details</h3>
+    <pre id="info-content" class="empty">Click a node to see details</pre>
+    <div id="drill-hint"></div>
+</div>
+<div id="legend">$legend_items</div>
+<div id="minimap-container"><canvas id="minimap-canvas" width="200" height="140"></canvas></div>
+<div id="status-bar">nodes: <span id="node-count">0</span> | edges: <span id="edge-count">0</span></div>
+<script>
+(function() {
+    var ALL_NODES = $nodes_json;
+    var ALL_EDGES = $edges_json;
+    var GRAPH_TYPE = "$graph_type";
+
+    // ---- validate deps ----
+    if (typeof cytoscape === 'undefined') {
+        document.body.innerHTML = '<div style="padding:40px;color:red;font-size:16px;">Error: cytoscape.js not loaded. Check assets/ directory.</div>';
+        return;
+    }
+    var hasDagreLayout = false;
+    try {
+        if (typeof dagre !== 'undefined') {
+            hasDagreLayout = true;
+        }
+    } catch(e) {}
+
+    // ---- build indices ----
+    var childrenMap = {};
+    var parentMap = {};
+    ALL_NODES.forEach(function(n) {
+        if (n.parent_id) {
+            parentMap[n.id] = n.parent_id;
+            if (!childrenMap[n.parent_id]) childrenMap[n.parent_id] = [];
+            childrenMap[n.parent_id].push(n.id);
+        }
+    });
+
+    // ---- stylesheet ----
+    var cyStyles = [
+        { selector: 'node', style: { 'label': 'data(label)', 'text-valign': 'center', 'text-halign': 'center', 'font-size': '12px', 'color': '#1e293b', 'text-wrap': 'wrap', 'text-max-width': '140px', 'padding': '8px', 'border-width': 2, 'shape': 'data(shape)' } },
+        { selector: 'node[group="top"]', style: { 'background-color': '#1e3a5f', 'border-color': '#0f172a', 'color': '#fff' } },
+        { selector: 'node[group="controller"]', style: { 'background-color': '#4f46e5', 'border-color': '#3730a3', 'color': '#fff' } },
+        { selector: 'node[group="arithmetic"]', style: { 'background-color': '#f59e0b', 'border-color': '#d97706', 'color': '#000' } },
+        { selector: 'node[group="memory"]', style: { 'background-color': '#8b5cf6', 'border-color': '#7c3aed', 'color': '#fff' } },
+        { selector: 'node[group="interface"]', style: { 'background-color': '#06b6d4', 'border-color': '#0891b2', 'color': '#000' } },
+        { selector: 'node[group="basic"]', style: { 'background-color': '#94a3b8', 'border-color': '#64748b', 'color': '#000' } },
+        { selector: 'node[group="module"]', style: { 'background-color': '#3b82f6', 'border-color': '#1d4ed8', 'color': '#fff' } },
+        { selector: 'node[group="signal"]', style: { 'background-color': '#22c55e', 'border-color': '#16a34a', 'color': '#fff' } },
+        { selector: 'node[group="state"]', style: { 'background-color': '#f59e0b', 'border-color': '#d97706', 'color': '#000' } },
+        { selector: 'node[group="clock"]', style: { 'background-color': '#8b5cf6', 'border-color': '#7c3aed', 'color': '#fff' } },
+        { selector: 'node[group="cycle"]', style: { 'background-color': '#ef4444', 'border-color': '#dc2626', 'color': '#fff' } },
+        { selector: 'node[group="aggregated"]', style: { 'background-color': '#e2e8f0', 'border-color': '#94a3b8', 'color': '#334155', 'border-style': 'dashed' } },
+        { selector: 'node[shape="diamond"]', style: { 'shape': 'diamond', 'background-color': '#475569', 'border-color': '#334155', 'width': 22, 'height': 22, 'font-size': '0', 'label': '' } },
+        { selector: 'edge', style: { 'width': 1.5, 'line-color': '#94a3b8', 'target-arrow-color': '#94a3b8', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', 'font-size': '10px', 'color': '#64748b', 'text-rotation': 'autorotate' } },
+        { selector: 'edge[label][label!=""]', style: { 'label': 'data(label)' } },
+        { selector: 'edge[dashes]', style: { 'line-style': 'dashed', 'line-color': '#ef4444', 'target-arrow-color': '#ef4444' } },
+        { selector: '.search-match', style: { 'border-width': 4, 'border-color': '#2563eb', 'overlay-color': '#2563eb', 'overlay-opacity': 0.2, 'overlay-padding': 6 } },
+        { selector: '.search-dim', style: { 'opacity': 0.12 } },
+    ];
+
+    // ---- layout ----
+    function getLayout() {
+        if (hasDagreLayout) {
+            if (GRAPH_TYPE === 'hierarchy') return { name: 'dagre', rankDir: 'TB', nodeSep: 60, edgeSep: 20, rankSep: 100 };
+            if (GRAPH_TYPE === 'dataflow') return { name: 'dagre', rankDir: 'LR', nodeSep: 60, edgeSep: 20, rankSep: 120 };
+        }
+        // fallback: built-in breadthfirst or cose
+        if (GRAPH_TYPE === 'hierarchy' || GRAPH_TYPE === 'dataflow') {
+            return { name: 'breadthfirst', directed: true, spacingFactor: 1.2 };
+        }
+        return { name: 'cose', idealEdgeLength: 80, nodeOverlap: 20, refresh: 20, fit: true, padding: 30, randomize: false, componentSpacing: 60, nodeRepulsion: 8000, gravity: 80 };
+    }
+
+    // ---- wrap data ----
+    function wrapElements(nodes, edges) {
+        return {
+            nodes: nodes.map(function(n) { return { data: n }; }),
+            edges: edges.map(function(e) { return { data: {
+                source: e.from, target: e.to,
+                label: e.label, dashes: e.dashes, arrows: e.arrows,
+            } }; }),
+        };
+    }
+
+    // ---- init ----
+    var wrapped = wrapElements(ALL_NODES, ALL_EDGES);
+    window.cy = cytoscape({
+        container: document.getElementById('canvas'),
+        elements: wrapped,
+        style: cyStyles,
+        layout: getLayout(),
+        wheelSensitivity: 0.3,
+        minZoom: 0.08,
+        maxZoom: 4,
+    });
+
+    document.getElementById('node-count').textContent = ALL_NODES.length;
+    document.getElementById('edge-count').textContent = ALL_EDGES.length;
+
+    // ---- state ----
+    var drillStack = [];
+    var isTreeType = (GRAPH_TYPE === 'hierarchy');
+
+    // ---- search ----
+    var searchTimer = null;
+    window.onSearchInput = function() {
+        var q = document.getElementById('search-box').value.trim().toLowerCase();
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(function() { doSearch(q); }, 200);
+    };
+    function doSearch(q) {
+        cy.nodes().removeClass('search-match search-dim');
+        cy.edges().removeClass('search-dim');
+        if (!q) { cy.fit(undefined, 50); return; }
+        var matched = cy.nodes().filter(function(n) { return n.data('label').toLowerCase().indexOf(q) >= 0; });
+        cy.nodes().not(matched).addClass('search-dim');
+        cy.edges().addClass('search-dim');
+        matched.addClass('search-match');
+        if (matched.length > 0) cy.animate({ fit: { eles: matched, padding: 60 }, duration: 300 });
+    }
+
+    // ---- info panel ----
+    cy.on('tap', 'node', function(evt) {
+        var node = evt.target;
+        document.getElementById('info-content').textContent = node.data('title') || node.data('label') || '';
+        document.getElementById('info-content').classList.remove('empty');
+        var hasKids = childrenMap[node.id()] && childrenMap[node.id()].length > 0;
+        document.getElementById('drill-hint').innerHTML = (hasKids && isTreeType) ? '&#128269; Double-click to drill into submodules' : '';
+    });
+    cy.on('tap', function(evt) {
+        if (evt.target === cy) {
+            document.getElementById('info-content').textContent = 'Click a node to see details';
+            document.getElementById('info-content').classList.add('empty');
+            document.getElementById('drill-hint').innerHTML = '';
+        }
+    });
+
+    // ---- drill-down ----
+    cy.on('dbltap', 'node', function(evt) {
+        if (!isTreeType) return;
+        var nodeId = evt.target.id();
+        var kids = childrenMap[nodeId];
+        if (!kids || kids.length === 0) return;
+        drillInto(nodeId);
+    });
+
+    function drillInto(nodeId) {
+        var nodeData = ALL_NODES.find(function(n) { return n.id === nodeId; });
+        if (!nodeData) return;
+        var subtreeIds = new Set();
+        (function collect(nid) { subtreeIds.add(nid); (childrenMap[nid] || []).forEach(collect); })(nodeId);
+        var ancestorIds = new Set();
+        var cur = nodeId;
+        while (cur) { ancestorIds.add(cur); cur = parentMap[cur] || ''; }
+        var allKeep = new Set(subtreeIds);
+        ancestorIds.forEach(function(a) { allKeep.add(a); });
+        drillStack.push({ id: nodeId, label: nodeData.label, keepIds: Array.from(allKeep) });
+        reloadGraph(Array.from(allKeep));
+    }
+
+    window.goUp = function() {
+        if (drillStack.length <= 1) { resetView(); return; }
+        drillStack.pop();
+        reloadGraph(drillStack[drillStack.length - 1].keepIds);
+    };
+
+    window.resetView = function() {
+        drillStack = [];
+        reloadGraph(ALL_NODES.map(function(n) { return n.id; }));
+    };
+
+    function reloadGraph(keepIds) {
+        var nodes, edges;
+        if (keepIds) {
+            var idSet = new Set(keepIds);
+            nodes = ALL_NODES.filter(function(n) { return idSet.has(n.id); });
+            edges = ALL_EDGES.filter(function(e) { return idSet.has(e.from) && idSet.has(e.to); });
+        } else {
+            nodes = ALL_NODES;
+            edges = ALL_EDGES;
+        }
+        cy.elements().remove();
+        cy.add(wrapElements(nodes, edges));
+        cy.layout(getLayout()).run();
+        cy.fit(undefined, 50);
+        document.getElementById('node-count').textContent = nodes.length;
+        document.getElementById('edge-count').textContent = edges.length;
+        renderBreadcrumb();
+    }
+
+    function renderBreadcrumb() {
+        var bc = document.getElementById('breadcrumb');
+        if (drillStack.length === 0) { bc.innerHTML = ''; document.getElementById('btn-back').disabled = true; return; }
+        document.getElementById('btn-back').disabled = false;
+        var html = '';
+        for (var i = 0; i < drillStack.length; i++) {
+            if (i > 0) html += '<span class="sep">&#9654;</span>';
+            html += '<a onclick="jumpToLevel(' + i + ')">' + esc(drillStack[i].label) + '</a>';
+        }
+        bc.innerHTML = html;
+    }
+
+    window.jumpToLevel = function(level) {
+        drillStack = drillStack.slice(0, level + 1);
+        reloadGraph(drillStack[drillStack.length - 1].keepIds);
+    };
+
+    function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // ---- PNG export ----
+    window.exportPNG = function() {
+        var b64 = cy.png({ full: true, bg: '#ffffff' });
+        var a = document.createElement('a'); a.download = 'graph.png'; a.href = b64;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    };
+
+    // ---- minimap ----
+    (function() {
+        var canvas = document.getElementById('minimap-canvas');
+        var ctx = canvas.getContext('2d');
+        var W = canvas.width, H = canvas.height;
+        var colors = {
+            top: '#1e3a5f', controller: '#4f46e5', arithmetic: '#f59e0b',
+            memory: '#8b5cf6', interface: '#06b6d4', basic: '#94a3b8',
+            module: '#3b82f6', signal: '#22c55e', state: '#f59e0b',
+            clock: '#8b5cf6', cycle: '#ef4444', aggregated: '#94a3b8'
+        };
+        function redraw() {
+            ctx.clearRect(0, 0, W, H); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+            var nodes = cy.nodes(); if (nodes.length === 0) return;
+            var bb = cy.elements().boundingBox();
+            var pad = Math.max(bb.w, bb.h) * 0.05 || 10;
+            var x1 = bb.x1 - pad, y1 = bb.y1 - pad, x2 = bb.x2 + pad, y2 = bb.y2 + pad;
+            var s = Math.min((W - 8) / (x2 - x1), (H - 8) / (y2 - y1));
+            nodes.forEach(function(n) {
+                var p = n.position();
+                var sx = 4 + (p.x - x1) * s, sy = 4 + (p.y - y1) * s;
+                ctx.fillStyle = colors[n.data('group')] || '#94a3b8';
+                ctx.fillRect(sx - 1.5, sy - 1.5, 3, 3);
+            });
+            var ext = cy.extent();
+            ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2;
+            ctx.strokeRect(4 + (ext.x1 - x1) * s, 4 + (ext.y1 - y1) * s, (ext.x2 - ext.x1) * s, (ext.y2 - ext.y1) * s);
+        }
+        cy.on('viewport', redraw); cy.on('layoutstop', redraw); setTimeout(redraw, 600);
+        canvas.addEventListener('click', function(e) {
+            var rect = canvas.getBoundingClientRect();
+            var mx = e.clientX - rect.left, my = e.clientY - rect.top;
+            var nodes = cy.nodes(); if (nodes.length === 0) return;
+            var bb = cy.elements().boundingBox();
+            var pad = Math.max(bb.w, bb.h) * 0.05 || 10;
+            var x1 = bb.x1 - pad, y1 = bb.y1 - pad, x2 = bb.x2 + pad, y2 = bb.y2 + pad;
+            var s = Math.min((W - 8) / (x2 - x1), (H - 8) / (y2 - y1));
+            cy.center(cy.pan().x + (cy.width()/2 - (x1 + (mx - 4) / s)), cy.pan().y + (cy.height()/2 - (y1 + (my - 4) / s)));
+        });
+    })();
+
+    renderBreadcrumb();
+})();
+</script>
+</body>
+</html>

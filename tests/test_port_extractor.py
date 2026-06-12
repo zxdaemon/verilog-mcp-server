@@ -52,6 +52,7 @@ def _find_module_node(tree, module_name, src):
 
     def search(node):
         if node.kind() == "module_declaration":
+            # Try ANSI header first
             header = find_child(node, "module_ansi_header")
             if header:
                 for i in range(header.child_count()):
@@ -59,13 +60,20 @@ def _find_module_node(tree, module_name, src):
                     if child.kind() == "simple_identifier":
                         if get_node_text(child, src) == module_name:
                             return node
-            else:
-                # Non-ANSI header: look for simple_identifier directly
-                for i in range(node.child_count()):
-                    child = node.child(i)
+            # Try non-ANSI header
+            header = find_child(node, "module_nonansi_header")
+            if header:
+                for i in range(header.child_count()):
+                    child = header.child(i)
                     if child.kind() == "simple_identifier":
                         if get_node_text(child, src) == module_name:
                             return node
+            # Fallback: recursive search for simple_identifier anywhere under module_declaration
+            for i in range(node.child_count()):
+                child = node.child(i)
+                if child.kind() == "simple_identifier":
+                    if get_node_text(child, src) == module_name:
+                        return node
         for i in range(node.child_count()):
             result = search(node.child(i))
             if result:

@@ -46,7 +46,7 @@ class PortExtractor:
         return ports
 
     def _extract_nonansi(self, module_node, header_node, source_text: str) -> list[PortDef]:
-        """从非 ANSI 风格模块声明中提取端口"""
+        """从非 ANSI 风格模块声明中提取端口（含位宽、类型、signed 属性）"""
         # 1. 从 list_of_ports 获取端口名列表
         port_names = []
         list_of_ports = find_child(header_node, "list_of_ports")
@@ -58,43 +58,104 @@ class PortExtractor:
                     if name_node:
                         port_names.append(get_node_text(name_node, source_text))
 
-        # 2. 从 module_item → port_declaration 获取方向和类型
-        port_info: dict[str, dict] = {name: {"direction": "inout", "var_type": "wire"} for name in port_names}
+        # 2. 从 module_item 扫描 port_declaration 和 data_declaration
+        port_info: dict[str, dict] = {name: {"direction": "inout", "var_type": "", "width_range": None, "signed": False}
+                                       for name in port_names}
         for i in range(module_node.child_count()):
             child = module_node.child(i)
             if child.kind() != "module_item":
                 continue
+
+            # 2a. port_declaration: 提取方向 + 位宽 + 类型
             port_decl = find_child(child, "port_declaration")
-            if port_decl is None:
-                continue
-            # 提取方向
-            for decl_kind, direction in [("input_declaration", "input"),
-                                          ("output_declaration", "output"),
-                                          ("inout_declaration", "inout")]:
-                decl = find_child(port_decl, decl_kind)
-                if decl:
-                    # 获取类型
-                    for j in range(decl.child_count()):
-                        dc = decl.child(j)
-                        if dc.kind() == "list_of_port_identifiers":
-                            for k in range(dc.child_count()):
-                                id_child = dc.child(k)
-                                if id_child.kind() == "simple_identifier":
-                                    ident_name = get_node_text(id_child, source_text)
-                                    if ident_name in port_info:
-                                        port_info[ident_name]["direction"] = direction
-                    break
+            if port_decl is not None:
+                for decl_kind, direction in [("input_declaration", "input"),
+                                              ("output_declaration", "output"),
+                                              ("inout_declaration", "inout")]:
+                    decl = find_child(port_decl, decl_kind)
+                    if decl:
+                        width, var_type, signed = self._parse_nonansi_decl(decl, source_text)
+                        idents = self._collect_nonansi_ident_names(decl, source_text)
+                        for ident_name in idents:
+                            if ident_name in port_info:
+                                port_info[ident_name]["direction"] = direction
+                                if width:
+                                    port_info[ident_name]["width_range"] = width
+                                if var_type:
+                                    port_info[ident_name]["var_type"] = var_type
+                                if signed:
+                                    port_info[ident_name]["signed"] = signed
+                        break
+
+            # 2b. data_declaration: 补充 wire/reg 声明中的类型和位宽
+            data_decl = find_child(child, "data_declaration")
+            if data_decl is not None:
+                width, var_type, signed = self._parse_nonansi_decl(data_decl, source_text)
+                idents = self._collect_nonansi_ident_names(data_decl, source_text)
+                for ident_name in idents:
+                    if ident_name in port_info:
+                        if width and not port_info[ident_name].get("width_range"):
+                            port_info[ident_name]["width_range"] = width
+                        if var_type and not port_info[ident_name].get("var_type"):
+                            port_info[ident_name]["var_type"] = var_type
+                        if signed:
+                            port_info[ident_name]["signed"] = True
 
         # 3. 构建 PortDef 列表
         ports = []
         for name in port_names:
-            info = port_info.get(name, {"direction": "inout", "var_type": "wire"})
+            info = port_info.get(name, {"direction": "inout", "var_type": "", "width_range": None, "signed": False})
             ports.append(PortDef(
                 name=name,
                 direction=info["direction"],
-                var_type=info.get("var_type", "wire"),
+                width_range=info.get("width_range"),
+                var_type=info.get("var_type") or "wire",
+                signed=info.get("signed", False),
             ))
         return ports
+
+    def _parse_nonansi_decl(self, decl_node, source_text: str) -> tuple:
+        """从 input/output/inout/data_declaration 节点提取 width, var_type, signed"""
+        width_range = None
+        var_type = ""
+        signed = False
+
+        def _search(n, depth=0):
+            nonlocal width_range, var_type, signed
+            if depth > 6:
+                return
+            if n.kind() == "packed_dimension":
+                width_range = get_node_text(n, source_text)
+            elif n.kind() in ("wire", "reg", "logic", "integer"):
+                var_type = n.kind()
+            elif n.kind() == "signed":
+                signed = True
+            for ci in range(n.child_count()):
+                _search(n.child(ci), depth + 1)
+
+        _search(decl_node)
+        return width_range, var_type, signed
+
+    def _collect_nonansi_ident_names(self, node, source_text: str) -> list[str]:
+        """收集 list_of_port_identifiers 中的 simple_identifier 名称"""
+        names = []
+        list_idents = find_child(node, "list_of_port_identifiers")
+        if list_idents is None:
+            list_idents = find_child(node, "list_of_variable_port_identifiers")
+        target = list_idents if list_idents is not None else node
+
+        def _collect(n, depth=0):
+            if depth > 8:
+                return
+            if n.kind() in ("packed_dimension", "unpacked_dimension"):
+                return
+            if n.kind() == "simple_identifier":
+                names.append(get_node_text(n, source_text))
+            for ci in range(n.child_count()):
+                _collect(n.child(ci), depth + 1)
+
+        _collect(target)
+        return names
 
     def _extract_from_header(self, header_node, source_text: str) -> list[PortDef]:
         """从 module_ansi_header 节点提取所有端口"""

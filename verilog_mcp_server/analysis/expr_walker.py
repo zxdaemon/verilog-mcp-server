@@ -75,7 +75,7 @@ def extract_signal_refs(expr_text: str) -> list[str]:
     try:
         source = expr_text.encode("utf-8")
         tree = parser.parse(source)
-    except Exception:
+    except (ValueError, AttributeError, TypeError):
         return _fallback_extract(expr_text)
 
     seen: set[str] = set()

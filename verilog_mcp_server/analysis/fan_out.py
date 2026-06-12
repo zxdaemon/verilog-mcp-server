@@ -17,13 +17,14 @@ class DataflowTracer(_BaseTracer):
     """完整的数据流追踪器 — 继承 fan_in 基类，添加 fan_out 方法"""
 
     def _trace_fan_out(self, parent: TraceNode, signal_name: str, module_name: str,
-                       instance_path: str, depth: int, max_depth: int):
+                       instance_path: str, depth: int, max_depth: int,
+                       visited: set[tuple[str, str, str]]):
         if depth > max_depth:
             return
         visit_key = (module_name, signal_name, "fan_out")
-        if visit_key in self._visited:
+        if visit_key in visited:
             return
-        self._visited.add(visit_key)
+        visited.add(visit_key)
 
         mod = self._index_store.get_module(module_name)
         if not mod:
@@ -33,7 +34,7 @@ class DataflowTracer(_BaseTracer):
         if is_port:
             port = self._get_port(mod, signal_name)
             if port and port.direction == "output":
-                self._trace_output_port_fan_out(parent, signal_name, module_name, instance_path, depth, max_depth)
+                self._trace_output_port_fan_out(parent, signal_name, module_name, instance_path, depth, max_depth, visited)
             elif port and port.direction == "input":
                 self._trace_input_port_fan_out(parent, signal_name, module_name, instance_path, depth, max_depth)
 
@@ -49,28 +50,31 @@ class DataflowTracer(_BaseTracer):
                 )
                 parent.children.append(child)
                 if load.type == "assign":
-                    self._trace_assign_lhs_fan_out(child, signal_name, module_name, instance_path, mod, depth + 1, max_depth, load)
+                    self._trace_assign_lhs_fan_out(child, signal_name, module_name, instance_path, mod, depth + 1, max_depth, load, visited)
                 elif load.type == "always_block":
-                    self._trace_always_lhs_fan_out(child, signal_name, module_name, instance_path, mod, depth + 1, max_depth, load)
+                    self._trace_always_lhs_fan_out(child, signal_name, module_name, instance_path, mod, depth + 1, max_depth, load, visited)
 
-        self._trace_instance_port_fan_out(parent, signal_name, module_name, instance_path, depth, max_depth)
+        self._trace_instance_port_fan_out(parent, signal_name, module_name, instance_path, depth, max_depth, visited)
 
-    def _trace_output_port_fan_out(self, parent, signal_name, module_name, instance_path, depth, max_depth):
-        mod_name_lower = module_name.lower()
-        for parent_mod in self._index_store.get_all_modules():
+    def _trace_output_port_fan_out(self, parent, signal_name, module_name, instance_path, depth, max_depth, visited):
+        for parent_mod_name in self._index_store.find_instantiators(module_name):
+            parent_mod = self._index_store.get_module(parent_mod_name)
+            if not parent_mod:
+                continue
             for inst in parent_mod.instances:
-                if inst.module_type.lower() == mod_name_lower:
-                    actual_signal = inst.port_connections.get(signal_name)
-                    if actual_signal:
-                        child = TraceNode(
-                            signal_name=actual_signal, module_name=parent_mod.name,
-                            instance_path=parent_mod.name, role="port_output_down",
-                            description=f"output端口 {signal_name} 在例化 {inst.instance_name} 中连接到 {actual_signal}",
-                            file_path=inst.file_path or parent_mod.file_path,
-                            line=inst.line, depth=depth,
-                        )
-                        parent.children.append(child)
-                        self._trace_fan_out(child, actual_signal, parent_mod.name, parent_mod.name, depth + 1, max_depth)
+                if inst.module_type.lower() != module_name.lower():
+                    continue
+                actual_signal = inst.port_connections.get(signal_name)
+                if actual_signal:
+                    child = TraceNode(
+                        signal_name=actual_signal, module_name=parent_mod.name,
+                        instance_path=parent_mod.name, role="port_output_down",
+                        description=f"output端口 {signal_name} 在例化 {inst.instance_name} 中连接到 {actual_signal}",
+                        file_path=inst.file_path or parent_mod.file_path,
+                        line=inst.line, depth=depth,
+                    )
+                    parent.children.append(child)
+                    self._trace_fan_out(child, actual_signal, parent_mod.name, parent_mod.name, depth + 1, max_depth, visited)
 
     def _trace_input_port_fan_out(self, parent, signal_name, module_name, instance_path, depth, max_depth):
         mod = self._index_store.get_module(module_name)
@@ -88,7 +92,7 @@ class DataflowTracer(_BaseTracer):
                 )
                 parent.children.append(child)
 
-    def _trace_instance_port_fan_out(self, parent, signal_name, module_name, instance_path, depth, max_depth):
+    def _trace_instance_port_fan_out(self, parent, signal_name, module_name, instance_path, depth, max_depth, visited):
         mod = self._index_store.get_module(module_name)
         if not mod:
             return
@@ -109,11 +113,11 @@ class DataflowTracer(_BaseTracer):
                             )
                             parent.children.append(child)
                             self._trace_fan_out(child, formal_port, child_mod.name,
-                                              f"{instance_path}.{inst.instance_name}", depth + 1, max_depth)
+                                              f"{instance_path}.{inst.instance_name}", depth + 1, max_depth, visited)
 
     # ── Assign / Always fan-out 辅助 ──
 
-    def _trace_assign_lhs_fan_out(self, parent, signal_name, module_name, instance_path, mod, depth, max_depth, load):
+    def _trace_assign_lhs_fan_out(self, parent, signal_name, module_name, instance_path, mod, depth, max_depth, load, visited):
         for assign in mod.assignments:
             rhs_sigs = self._extract_signal_names(assign.rhs)
             if signal_name in rhs_sigs:
@@ -125,10 +129,10 @@ class DataflowTracer(_BaseTracer):
                     line=assign.line, depth=depth,
                 )
                 parent.children.append(child)
-                self._trace_fan_out(child, assign.lhs, module_name, instance_path, depth + 1, max_depth)
+                self._trace_fan_out(child, assign.lhs, module_name, instance_path, depth + 1, max_depth, visited)
                 break
 
-    def _trace_always_lhs_fan_out(self, parent, signal_name, module_name, instance_path, mod, depth, max_depth, load):
+    def _trace_always_lhs_fan_out(self, parent, signal_name, module_name, instance_path, mod, depth, max_depth, load, visited):
         for always in mod.always_blocks:
             sens_list = always.sensitivity_list
             if signal_name in sens_list.replace("posedge ", "").replace("negedge ", "").split(" or "):
@@ -145,4 +149,4 @@ class DataflowTracer(_BaseTracer):
                                 file_path=mod.file_path, depth=depth,
                             )
                             parent.children.append(child)
-                            self._trace_fan_out(child, lhs, module_name, instance_path, depth + 1, max_depth)
+                            self._trace_fan_out(child, lhs, module_name, instance_path, depth + 1, max_depth, visited)

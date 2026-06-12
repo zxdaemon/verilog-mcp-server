@@ -186,7 +186,7 @@ class ClockAnalyzer:
                     sync_resets.append(sr)
 
         # 跨时钟域信号检测
-        cross_domain = self._detect_cross_domain(list(clock_domains.values()))
+        cross_domain = self._detect_cross_domain(list(clock_domains.values()), mod)
 
         return ClockAnalysis(
             module_name=module_name,
@@ -272,11 +272,12 @@ class ClockAnalyzer:
 
         return resets
 
-    def _detect_cross_domain(self, domains: list[ClockDomain]) -> list[dict]:
+    def _detect_cross_domain(self, domains: list[ClockDomain], mod: ModuleDef | None = None) -> list[dict]:
         """
-        检测跨时钟域信号
+        检测跨时钟域信号，并识别同步器类型
 
-        如果某个信号出现在多个时钟域中，则标记为跨时钟域信号
+        如果某个信号出现在多个时钟域中，则标记为跨时钟域信号。
+        同时检测双触发器同步器和握手同步器模式。
         """
         cross_domain = []
 
@@ -292,17 +293,156 @@ class ClockAnalyzer:
                 if domain.clock_name not in signal_domains[sig]:
                     signal_domains[sig].append(domain.clock_name)
 
+        # 检测同步器模式（需要模块信息）
+        synchronizers: dict[str, str] = {}
+        if mod:
+            synchronizers = self._detect_synchronizers(mod, list(signal_domains.keys()))
+
         # 找出跨时钟域信号
         for sig, clks in signal_domains.items():
             if len(clks) >= 2:
+                sync_type = synchronizers.get(sig, "")
+                if sync_type == "two_flop":
+                    risk = "低"
+                    note = "已检测到双触发器同步器（安全）"
+                elif sync_type == "handshake":
+                    risk = "低"
+                    note = "已检测到握手同步器（安全）"
+                else:
+                    risk = "高"
+                    note = "信号在多个时钟域中被驱动，可能需要同步器"
+
                 cross_domain.append({
                     "signal": sig,
                     "clock_domains": clks,
-                    "risk": "高" if "posedge" in str(clks) else "中",
-                    "note": "信号在多个时钟域中被驱动，可能需要同步器",
+                    "risk": risk,
+                    "synchronizer": sync_type,
+                    "note": note,
                 })
 
         return cross_domain
+
+    def _detect_synchronizers(
+        self, mod: ModuleDef, cross_domain_signals: list[str]
+    ) -> dict[str, str]:
+        """检测模块中的同步器模式
+
+        Args:
+            mod: 模块定义
+            cross_domain_signals: 跨时钟域信号列表
+
+        Returns:
+            {signal_name: synchronizer_type} 字典
+            synchronizer_type: "two_flop" | "handshake" | ""
+        """
+        result: dict[str, str] = {}
+
+        # 1. 检测双触发器同步器
+        two_flop_signals = self._detect_two_flop_synchronizer(mod)
+        for sig in two_flop_signals:
+            if sig in cross_domain_signals:
+                result[sig] = "two_flop"
+
+        # 2. 检测握手同步器
+        handshake_signals = self._detect_handshake_synchronizer(mod)
+        for sig in handshake_signals:
+            if sig in cross_domain_signals and sig not in result:
+                result[sig] = "handshake"
+
+        return result
+
+    def _detect_two_flop_synchronizer(self, mod: ModuleDef) -> set[str]:
+        """检测双触发器同步器模式
+
+        特征：跨时钟域信号在同一目标时钟的两个连续时序 always 块中被采样。
+        即：signal → reg1 (clk_a) → reg2 (clk_a)
+        """
+        candidates: set[str] = set()
+
+        # 按时钟域分组 always 块
+        clk_blocks: dict[str, list[AlwaysBlockInfo]] = {}
+        for ab in mod.always_blocks:
+            sens_items = self._parse_sensitivity(ab.sensitivity_list)
+            for item in sens_items:
+                if self._classifier.is_clock(item["signal"], mod):
+                    clk = item["signal"]
+                    if clk not in clk_blocks:
+                        clk_blocks[clk] = []
+                    clk_blocks[clk].append(ab)
+                    break
+
+        # 在每个时钟域中检查两级采样模式
+        for clk, blocks in clk_blocks.items():
+            if len(blocks) < 2:
+                continue
+
+            for ab in blocks:
+                text = " ".join(ab.statements)
+                # 查找信号被采样到临时寄存器的模式
+                for m in re.finditer(
+                    r'\b(\w+)\s*<\s*=\s*(\w+)\s*;',
+                    text
+                ):
+                    temp_reg = m.group(1)
+                    source_sig = m.group(2)
+                    # 检查是否有另一个 always 块将 temp_reg 采样到最终寄存器
+                    for other in blocks:
+                        if other is ab:
+                            continue
+                        other_text = " ".join(other.statements)
+                        if re.search(rf'\b\w+\s*<\s*=\s*{re.escape(temp_reg)}\s*;', other_text):
+                            candidates.add(source_sig)
+
+        return candidates
+
+    def _detect_handshake_synchronizer(self, mod: ModuleDef) -> set[str]:
+        """检测握手同步器模式
+
+        特征：存在请求-应答信号对（req/ack），在各自时钟域中有采样逻辑。
+        """
+        candidates: set[str] = set()
+
+        # 查找 req/ack 信号对（从端口和信号中查找）
+        req_signals: list[str] = []
+        ack_signals: list[str] = []
+
+        for sig in mod.signals:
+            name_lower = sig.name.lower()
+            if "req" in name_lower or "request" in name_lower:
+                req_signals.append(sig.name)
+            if "ack" in name_lower or "acknowledge" in name_lower:
+                ack_signals.append(sig.name)
+
+        for port in mod.ports:
+            name_lower = port.name.lower()
+            if "req" in name_lower or "request" in name_lower:
+                req_signals.append(port.name)
+            if "ack" in name_lower or "acknowledge" in name_lower:
+                ack_signals.append(port.name)
+
+        if not req_signals or not ack_signals:
+            return candidates
+
+        # 检查 req/ack 是否在 always 块中被采样
+        req_sampled = set()
+        ack_sampled = set()
+
+        for ab in mod.always_blocks:
+            text = " ".join(ab.statements)
+            for req in req_signals:
+                if re.search(rf'\b{re.escape(req)}\b', text):
+                    req_sampled.add(req)
+            for ack in ack_signals:
+                if re.search(rf'\b{re.escape(ack)}\b', text):
+                    ack_sampled.add(ack)
+
+        # 如果 req 和 ack 都被采样，认为是握手同步器
+        for req in req_sampled:
+            for ack in ack_sampled:
+                candidates.add(req)
+                candidates.add(ack)
+
+        return candidates
 
     @staticmethod
     def _get_clock_name(signal_name: str) -> str:

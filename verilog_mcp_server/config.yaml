@@ -34,6 +34,16 @@ index:
     ".sv": "systemverilog"
     ".svh": "systemverilog"
 
+pyslang:
+  # 启用 pyslang 语义解析（用于 elaboration、generate 展开、参数求值）
+  enabled: true
+  # include 搜索路径（传给 pyslang 预处理器）
+  include_dirs: []
+  # 预定义宏（传给 pyslang 预处理器）
+  defines: {}
+  # 顶层模块名（可选，留空则自动推断）
+  top_module: ""
+
 cache:
   # 缓存文件路径（SQLite 持久化，相对于工作目录）
   path: ".verilog_mcp/cache.db"

@@ -4,7 +4,7 @@ Verilog/SystemVerilog 代码分析数据模型
 
 from __future__ import annotations
 import json as _json
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field, fields, MISSING
 from typing import get_origin, get_args, get_type_hints, Optional
 
 
@@ -24,7 +24,12 @@ class SerializableModel:
         kwargs = {}
         for f in fields(cls):
             raw = d.get(f.name)
-            kwargs[f.name] = cls._deserialize_value(raw, f.name, hints)
+            if raw is None and f.default_factory is not MISSING:
+                kwargs[f.name] = f.default_factory()
+            elif raw is None and f.default is not MISSING:
+                kwargs[f.name] = f.default
+            else:
+                kwargs[f.name] = cls._deserialize_value(raw, f.name, hints)
         return cls(**kwargs)
 
     # ── SQLite 行序列化 ──
@@ -158,6 +163,56 @@ class TypeDef(SerializableModel):
 
 
 @dataclass
+class PackageImportDef(SerializableModel):
+    """Package import declaration"""
+    package: str
+    symbol: str = "*"
+    wildcard: bool = True
+
+
+@dataclass
+class SvaDef(SerializableModel):
+    """SVA assertion / property / sequence entry"""
+    type: str            # immediate / concurrent / property / sequence
+    keyword: str         # assert / assume / cover
+    name: str = ""       # name for property/sequence declarations
+    expression: str = "" # assertion expression (immediate)
+    property: str = ""   # property expression (concurrent)
+    clock: str = ""      # clocking event, e.g. "@(posedge clk)"
+    action: str = ""     # pass/fail action block text
+    body: str = ""       # property/sequence body text
+
+
+@dataclass
+class MacroDef(SerializableModel):
+    """`define macro definition"""
+    name: str
+    params: list[str] = field(default_factory=list)
+    value: str = ""
+    file_path: str = ""
+    line: int = 0
+
+
+@dataclass
+class ConditionalBranch(SerializableModel):
+    """Conditional compilation branch (`ifdef/`ifndef/`elsif/`else)"""
+    condition: str
+    branch_type: str     # ifdef / ifndef / elsif / else
+    start_line: int = 0
+    end_line: int = 0
+    children: list["ConditionalBranch"] = field(default_factory=list)
+
+
+@dataclass
+class PackageDef(SerializableModel):
+    """Package definition"""
+    name: str
+    file_path: str = ""
+    typedefs: list[TypeDef] = field(default_factory=list)
+    parameters: list[ParamDef] = field(default_factory=list)
+
+
+@dataclass
 class ModuleDef(SerializableModel):
     """模块完整定义"""
     name: str
@@ -170,6 +225,10 @@ class ModuleDef(SerializableModel):
     instances: list[InstanceDef] = field(default_factory=list)
     always_blocks: list[AlwaysBlockInfo] = field(default_factory=list)
     assignments: list[AssignmentInfo] = field(default_factory=list)
+    package_imports: list[PackageImportDef] = field(default_factory=list)
+    assertions: list[SvaDef] = field(default_factory=list)
+    is_testbench: bool = False
+    has_non_synth_constructs: bool = False
 
     # SQLite 列名到字段的映射
     _NESTED_FIELDS = ("ports", "params", "signals", "instances", "always_blocks", "assignments")
@@ -192,6 +251,10 @@ class ModuleDef(SerializableModel):
             "instances_json": _json.dumps([i.to_dict() for i in self.instances], ensure_ascii=False),
             "always_blocks_json": _json.dumps([a.to_dict() for a in self.always_blocks], ensure_ascii=False),
             "assignments_json": _json.dumps([a.to_dict() for a in self.assignments], ensure_ascii=False),
+            "package_imports_json": _json.dumps([p.to_dict() for p in (self.package_imports or [])], ensure_ascii=False),
+            "assertions_json": _json.dumps([a.to_dict() for a in (self.assertions or [])], ensure_ascii=False),
+            "is_testbench": self.is_testbench,
+            "has_non_synth_constructs": self.has_non_synth_constructs,
         }
 
     @classmethod
@@ -208,4 +271,91 @@ class ModuleDef(SerializableModel):
             instances=[InstanceDef.from_dict(d) for d in _json.loads(row.get("instances_json") or "[]")],
             always_blocks=[AlwaysBlockInfo.from_dict(d) for d in _json.loads(row.get("always_blocks_json") or "[]")],
             assignments=[AssignmentInfo.from_dict(d) for d in _json.loads(row.get("assignments_json") or "[]")],
+            package_imports=[PackageImportDef.from_dict(d) for d in _json.loads(row.get("package_imports_json") or "[]")],
+            assertions=[SvaDef.from_dict(d) for d in _json.loads(row.get("assertions_json") or "[]")],
+            is_testbench=row.get("is_testbench", False),
+            has_non_synth_constructs=row.get("has_non_synth_constructs", False),
         )
+
+
+@dataclass
+class FileMeta(SerializableModel):
+    """File-level metadata"""
+    file_path: str
+    defines: list[MacroDef] = field(default_factory=list)
+    conditionals: list[ConditionalBranch] = field(default_factory=list)
+    package_defs: list[PackageDef] = field(default_factory=list)
+
+    def to_row(self) -> dict:
+        return {
+            "file_path": self.file_path,
+            "defines_json": _json.dumps([d.to_dict() for d in self.defines], ensure_ascii=False),
+            "conditionals_json": _json.dumps([c.to_dict() for c in self.conditionals], ensure_ascii=False),
+            "package_defs_json": _json.dumps([p.to_dict() for p in self.package_defs], ensure_ascii=False),
+        }
+
+    @classmethod
+    def from_row(cls, row: dict) -> "FileMeta":
+        return cls(
+            file_path=row["file_path"],
+            defines=[MacroDef.from_dict(d) for d in _json.loads(row.get("defines_json") or "[]")],
+            conditionals=[ConditionalBranch.from_dict(d) for d in _json.loads(row.get("conditionals_json") or "[]")],
+            package_defs=[PackageDef.from_dict(d) for d in _json.loads(row.get("package_defs_json") or "[]")],
+        )
+
+
+# ── Elaboration 增强数据模型 ──
+
+
+@dataclass
+class ElaboratedInstanceDef(SerializableModel):
+    """pyslang elaboration 后的实例定义（含 generate 展开）"""
+    instance_name: str
+    module_type: str
+    hierarchical_path: str
+    parent_module: str = ""
+    is_generated: bool = False
+    generate_condition: str = ""
+    generate_source: str = ""
+    file_path: str = ""
+    line: int = 0
+
+
+@dataclass
+class ResolvedSignalDef(SerializableModel):
+    """参数求值后的信号定义"""
+    name: str
+    module_name: str
+    var_type: str = "wire"
+    original_width: str = ""
+    resolved_width: str = ""
+    resolved_bit_width: int = 0
+    is_signed: bool = False
+
+
+@dataclass
+class MacroExpansionInfo(SerializableModel):
+    """宏定义与展开位置信息"""
+    name: str
+    definition: str = ""
+    definition_file: str = ""
+    definition_line: int = 0
+    expansion_count: int = 0
+    expansion_locations: list[dict] = field(default_factory=list)
+
+
+@dataclass
+class ElaborationReport(SerializableModel):
+    """Elaboration 全局报告"""
+    top_modules: list[str] = field(default_factory=list)
+    total_instances: int = 0
+    generated_instances: int = 0
+    non_generated_instances: int = 0
+    unique_module_types: int = 0
+    resolved_signals: int = 0
+    tree_sitter_module_count: int = 0
+    pyslang_module_count: int = 0
+    error_count: int = 0
+    warning_count: int = 0
+    diagnostics: list[dict] = field(default_factory=list)
+    hierarchy: dict[str, list[str]] = field(default_factory=dict)

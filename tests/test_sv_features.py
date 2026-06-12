@@ -112,7 +112,7 @@ class TestParameterExtraction:
         extractor = ModuleExtractor()
         tree, src = parse_source(PARAM_SRC)
         mods = extractor.extract(tree, src, "fifo.sv")
-        params = mods[0].parameters
+        params = mods[0][0].parameters
         assert len(params) >= 2
         names = [p.name for p in params]
         assert "WIDTH" in names
@@ -122,7 +122,7 @@ class TestParameterExtraction:
         extractor = ModuleExtractor()
         tree, src = parse_source(PARAM_SRC)
         mods = extractor.extract(tree, src, "fifo.sv")
-        params = mods[0].parameters
+        params = mods[0][0].parameters
         lp = [p for p in params if p.type == "localparam"]
         assert len(lp) >= 1
         assert lp[0].name == "ADDR_W"

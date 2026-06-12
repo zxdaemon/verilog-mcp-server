@@ -11,6 +11,7 @@ dependencies = [
     "mcp>=1.0.0",
     "tree-sitter-language-pack>=0.12.0",
     "pyyaml>=6.0",
+    "pyslang>=11.0.0,<12.0.0",
 ]
 
 [project.scripts]
@@ -25,3 +26,4 @@ include = ["verilog_mcp_server*"]
 
 [tool.setuptools.package-data]
 verilog_mcp_server = ["*.yaml", "*.yml"]
+"verilog_mcp_server.templates" = ["*.html"]

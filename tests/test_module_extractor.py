@@ -31,8 +31,10 @@ def test_extract_single_module():
     tree, src = parse_source(SIMPLE_MODULE)
     modules = extractor.extract(tree, src, "test.v")
     assert len(modules) == 1
-    assert modules[0].name == "adder"
-    assert modules[0].file_path == "test.v"
+    mod, node = modules[0]
+    assert mod.name == "adder"
+    assert mod.file_path == "test.v"
+    assert node is not None
 
 
 def test_extract_multiple_modules():
@@ -40,7 +42,7 @@ def test_extract_multiple_modules():
     tree, src = parse_source(MULTI_MODULE)
     modules = extractor.extract(tree, src, "test.v")
     assert len(modules) == 2
-    names = {m.name for m in modules}
+    names = {m.name for m, _ in modules}
     assert names == {"simple", "wrapper"}
 
 

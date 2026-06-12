@@ -228,14 +228,24 @@ def register_tools(mcp: "FastMCP", index_store: "IndexStore"):
                 f"",
             ]
             if cross_signals:
-                lines.append(f"**发现 {len(cross_signals)} 个跨时钟域信号** ⚠️")
+                lines.append(f"**发现 {len(cross_signals)} 个跨时钟域信号**")
                 lines.append(f"")
-                lines.append(f"| 信号 | 所属时钟域 |")
-                lines.append(f"|------|-----------|")
-                for sig, ds in sorted(cross_signals.items()):
-                    lines.append(f"| `{sig}` | {', '.join(ds)} |")
+                lines.append(f"| 信号 | 所属时钟域 | 风险 | 同步器 |")
+                lines.append(f"|------|-----------|------|--------|")
+                for cd in analysis.cross_domain_signals:
+                    sig = cd["signal"]
+                    clks = cd["clock_domains"]
+                    risk = cd.get("risk", "高")
+                    sync = cd.get("synchronizer", "")
+                    sync_str = {"two_flop": "双触发器", "handshake": "握手"}.get(sync, "无")
+                    risk_icon = "✅" if risk == "低" else "⚠️"
+                    lines.append(f"| `{sig}` | {', '.join(clks)} | {risk_icon} {risk} | {sync_str} |")
                 lines.append(f"")
-                lines.append(f"> ⚠️ 跨时钟域信号需要同步器（如 double flop）处理")
+                unsynced = [cd for cd in analysis.cross_domain_signals if not cd.get("synchronizer")]
+                if unsynced:
+                    lines.append(f"> ⚠️ {len(unsynced)} 个信号未检测到同步器，建议添加")
+                else:
+                    lines.append(f"> ✅ 所有跨时钟域信号均有同步器保护")
             else:
                 lines.append(f"✅ 未检测到跨时钟域信号")
         except DomainError as e:
@@ -275,7 +285,8 @@ def register_tools(mcp: "FastMCP", index_store: "IndexStore"):
                 return f"ℹ️ 未在 '{top_module}' 及其子模块中检测到时钟域"
 
             if output_format == "mermaid":
-                return clock_tree_builder.format_mermaid(result)
+                from ..analysis.visualizer import clock_tree_to_graph, graph_to_mermaid
+                return graph_to_mermaid(clock_tree_to_graph(result))
             else:
                 return clock_tree_builder.format_text_tree(result)
 
@@ -285,34 +296,36 @@ def register_tools(mcp: "FastMCP", index_store: "IndexStore"):
             return f"❌ {e}"
 
     @mcp.tool()
-    def rtl_port_dataflow(module_name: str, port_name: str) -> str:
-        """追踪模块端口信号的驱动源或负载
+    def rtl_port_dataflow(
+        module_name: str, port_name: str, direction: str = "both", max_depth: int = 5
+    ) -> str:
+        """追踪模块端口信号的跨层级数据流
+
+        支持穿透例化边界，追踪端口信号的最终驱动源或负载。
 
         Args:
             module_name: 模块名称
             port_name: 端口名称
+            direction: 追踪方向 — "fan_in"（向上追驱动源）、"fan_out"（向上追负载）、"both"（双向，默认）
+            max_depth: 最大穿透深度（默认 5）
         """
         tracer = DataflowTracer(index_store)
         try:
-            result = tracer.trace_port_to_internal(module_name, port_name)
-            if result is None:
-                trace = tracer.trace_signal(port_name, module_name, "fan_in", max_depth=5)
-                if trace and trace.nodes_count > 0:
-                    lines = [
-                        f"# 端口数据流: {module_name}.{port_name}",
-                        f"",
-                        f"**Fan-in 追踪** — 回溯到 {trace.nodes_count} 个节点:",
-                        f"",
-                    ]
-                    result = trace
-                else:
-                    lines = [
-                        f"# 端口数据流: {module_name}.{port_name}",
-                        f"",
-                        f"ℹ️ 未追踪到数据流路径",
-                    ]
-                return "\n".join(lines) + "\n\n> 💡 端口数据流穿透的详细功能需要完整的跨层级追踪支持，当前使用 fan-in 模式"
+            result = tracer.trace_port_dataflow(
+                module_name, port_name, direction=direction, max_depth=max_depth
+            )
+            if result.nodes_count <= 1:
+                return (
+                    f"# 端口数据流: {module_name}.{port_name}\n\n"
+                    f"ℹ️ 未追踪到数据流路径（端口可能未连接或无内部使用）"
+                )
+            return DataflowTracer.format_trace_result(
+                result, title=f"端口数据流: {module_name}.{port_name}"
+            )
+        except ValueError as e:
+            return (
+                f"# 端口数据流: {module_name}.{port_name}\n\n"
+                f"ℹ️ 端口或模块不存在: {e}"
+            )
         except DomainError as e:
             return f"❌ {e}"
-
-        return "\n".join(lines) if isinstance(lines, list) else str(lines)
