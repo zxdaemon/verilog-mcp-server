@@ -7,6 +7,7 @@ tree-sitter Verilog/SystemVerilog 解析封装
 from __future__ import annotations
 import logging
 from pathlib import Path
+import re
 from typing import Optional
 
 from tree_sitter_language_pack import get_language, get_parser
@@ -205,3 +206,13 @@ def _recursive_find(node, kind_name: str, results: list, depth: int, max_depth: 
     for i in range(node.child_count()):
         child = node.child(i)
         _recursive_find(child, kind_name, results, depth + 1, max_depth)
+
+
+# ── 并行解析支持 ──
+
+def parse_single_file(file_path: str) -> tuple | None:
+    """解析单个文件（顶层函数，用于 ProcessPoolExecutor）"""
+    result = parse_file(file_path)
+    if result:
+        return (file_path, result[0], result[1])
+    return None

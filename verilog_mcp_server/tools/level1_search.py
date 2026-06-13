@@ -151,65 +151,8 @@ def _fmt_signal_results(results: list) -> str:
 
 
 def _do_get_hierarchy(index_store: IndexStore, module_name: str, max_depth: int = 5, include_elab: bool = False) -> str:
-    """构建模块层次树"""
-    visited = set()
-
-    # 获取 pyslang elaborated 实例
-    elab_instances = []
-    if include_elab:
-        elab_instances = index_store.get_elab_instances()
-    elab_by_parent: dict[str, list] = {}
-    for inst in elab_instances:
-        parent = inst.parent_module or module_name
-        elab_by_parent.setdefault(parent, []).append(inst)
-
-    def _build_tree(mod_name: str, depth: int = 0, indent: str = "", parent_name: str = "") -> list[str]:
-        if depth > max_depth:
-            return [f"{indent}└─ ... (已达最大深度 {max_depth})"]
-        if mod_name in visited:
-            return [f"{indent}└─ {mod_name} (循环引用)"]
-
-        mod = index_store.get_module(mod_name)
-        if not mod:
-            return [f"{indent}└─ {mod_name} (未找到)"]
-
-        visited.add(mod_name)
-        lines = []
-        if depth == 0:
-            lines.append(f"{mod.name}  [{mod.file_path}]")
-        else:
-            lines.append(f"{indent}└─ {mod.name}")
-
-        children_indent = indent + ("   " if depth == 0 else "│  ")
-
-        # 先显示 tree-sitter 提取的实例
-        for i, inst in enumerate(mod.instances):
-            is_last = (i == len(mod.instances) - 1)
-            conn_prefix = children_indent + ("└─ " if is_last else "├─ ")
-
-            target_mod = index_store.get_module(inst.module_type)
-            if target_mod:
-                lines.append(f"{conn_prefix}{inst.instance_name} → {inst.module_type}")
-                next_indent = children_indent + ("   " if is_last else "│  ")
-                sub_lines = _build_tree(inst.module_type, depth + 1, next_indent, mod_name)
-                if sub_lines:
-                    sub_lines[0] = f"{next_indent}├─ {target_mod.name} ({len(target_mod.ports)} ports)"
-                    lines.extend(sub_lines[1:])
-            else:
-                lines.append(f"{conn_prefix}{inst.instance_name} → {inst.module_type} [?]")
-
-        # 显示 pyslang generate 展开实例
-        if include_elab and mod_name in elab_by_parent:
-            gen_insts = [e for e in elab_by_parent[mod_name] if e.is_generated]
-            if gen_insts:
-                lines.append(f"{children_indent}├─ [pyslang generate 展开]:")
-                for gi in gen_insts[:10]:
-                    lines.append(f"{children_indent}│  └─ {gi.hierarchical_path} → {gi.module_type}")
-                if len(gen_insts) > 10:
-                    lines.append(f"{children_indent}│     ... 还有 {len(gen_insts) - 10} 个展开实例")
-
-        visited.remove(mod_name)
-        return lines
+    """构建模块层次树（优先使用 pyslang 数据）"""
+    from ..analysis.hierarchy import HierarchyBuilder
 
     root_mod = index_store.get_module(module_name)
     if not root_mod:
@@ -219,7 +162,8 @@ def _do_get_hierarchy(index_store: IndexStore, module_name: str, max_depth: int 
         else:
             raise ModuleNotFoundError(module_name)
 
-    tree_lines = _build_tree(module_name)
+    builder = HierarchyBuilder(index_store)
+    tree_lines = builder.format_tree_text(module_name, max_depth).split("\n")
     return "\n".join(tree_lines)
 
 
@@ -371,3 +315,56 @@ def register_tools(mcp, index_store: IndexStore):
             return _do_get_hierarchy(index_store, module_name, max_depth, include_elab)
         except ModuleNotFoundError:
             return f"未找到模块 '{module_name}'"
+
+    @mcp.tool()
+    def rtl_search_package(pattern: str) -> str:
+        """
+        模糊搜索 package 定义
+
+        Args:
+            pattern: package 名搜索模式（大小写不敏感，支持部分匹配）
+
+        Returns:
+            匹配的 package 列表（名称、文件路径、typedef 数量、parameter 数量）
+        """
+        pkgs = index_store.search_packages(pattern)
+        if not pkgs:
+            return f"未找到匹配 '{pattern}' 的 package"
+        lines = [f"找到 {len(pkgs)} 个匹配 package:\n"]
+        for p in pkgs:
+            lines.append(f"### {p.name}")
+            lines.append(f"- 文件: `{p.file_path}`")
+            if p.typedefs:
+                lines.append(f"- 类型: {', '.join(t.name for t in p.typedefs[:10])}")
+            if p.parameters:
+                lines.append(f"- 参数: {len(p.parameters)} 个")
+            lines.append("")
+        return "\n".join(lines)
+
+    @mcp.tool()
+    def rtl_search_function(pattern: str) -> str:
+        """
+        模糊搜索 function / task 定义
+
+        Args:
+            pattern: function/task 名搜索模式（大小写不敏感，支持部分匹配）
+
+        Returns:
+            匹配的 function/task 列表
+        """
+        funcs = index_store.search_functions(pattern)
+        if not funcs:
+            return f"未找到匹配 '{pattern}' 的 function/task"
+        lines = [f"找到 {len(funcs)} 个匹配 function/task:\n"]
+        for f in funcs:
+            kind = f.kind
+            ret = f" → {f.return_type}" if f.return_type else ""
+            port_info = f" ({len(f.ports)} 参数)" if f.ports else ""
+            lines.append(f"### {f.name}")
+            lines.append(f"- 类型: {kind}{ret}{port_info}")
+            lines.append(f"- 文件: `{f.file_path}` 行 {f.line}")
+            if f.ports:
+                for p in f.ports:
+                    lines.append(f"  - {p.direction} {p.var_type} {p.name}")
+            lines.append("")
+        return "\n".join(lines)

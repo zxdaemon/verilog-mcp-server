@@ -29,6 +29,8 @@ class HierarchyNode:
     line_start: int = 0
     line_end: int = 0
     is_cycle_ref: bool = False        # 是否为循环引用标记节点
+    is_generated: bool = False        # 是否为 generate 展开实例
+    generate_info: str = ""           # generate 条件信息
 
     def to_dict(self) -> dict:
         return {
@@ -52,13 +54,18 @@ class HierarchyBuilder:
     def __init__(self, index_store: IndexStore):
         self._index_store = index_store
 
-    def build_tree(self, top_module: str, max_depth: int = 10) -> HierarchyNode:
+    def build_tree(self, top_module: str, max_depth: int = 10,
+                   include_elab: bool = True) -> HierarchyNode:
         """
         构建以 top_module 为根的层次树
+
+        优先使用 pyslang elaboration 数据（含 generate 展开），
+        无 elaboration 数据时回退到 tree-sitter 索引。
 
         Args:
             top_module: 顶层模块名
             max_depth: 最大递归深度
+            include_elab: 是否优先使用 pyslang elaboration 数据
 
         Returns:
             HierarchyNode 根节点
@@ -70,7 +77,85 @@ class HierarchyBuilder:
         if not mod:
             raise ValueError(f"模块 '{top_module}' 不存在于索引中")
 
+        # 优先使用 pyslang elaboration 数据
+        if include_elab:
+            elab_instances = self._index_store.get_elab_instances()
+            if elab_instances:
+                return self._build_from_elab(top_module, elab_instances, max_depth)
+
+        # 回退到 tree-sitter 索引
         return self._expand(top_module, "", top_module, set(), 0, max_depth)
+
+    def _build_from_elab(
+        self,
+        top_module: str,
+        elab_instances: list,
+        max_depth: int,
+    ) -> HierarchyNode:
+        """从 pyslang elaboration 数据构建层次树"""
+        # 构建 parent → children 映射
+        children_map: dict[str, list] = {}
+        inst_map: dict[str, object] = {}
+
+        for inst in elab_instances:
+            parent = inst.parent_module or top_module
+            children_map.setdefault(parent, []).append(inst)
+            inst_map[inst.hierarchical_path] = inst
+
+        root = HierarchyNode(
+            module_name=top_module,
+            instance_name="",
+            instance_path=top_module,
+            file_path=self._index_store.get_module(top_module).file_path if self._index_store.get_module(top_module) else "",
+        )
+
+        self._expand_elab(root, top_module, children_map, set(), 0, max_depth)
+        return root
+
+    def _expand_elab(
+        self,
+        node: HierarchyNode,
+        module_name: str,
+        children_map: dict,
+        visited: set[str],
+        depth: int,
+        max_depth: int,
+    ):
+        """递归展开 pyslang elaboration 层次"""
+        if depth >= max_depth:
+            return
+
+        new_visited = visited | {module_name}
+        children = children_map.get(module_name, [])
+
+        for inst in children:
+            child_path = inst.hierarchical_path
+            child_mod_name = inst.module_type
+
+            if child_mod_name in visited:
+                node.children.append(HierarchyNode(
+                    module_name=child_mod_name,
+                    instance_name=inst.instance_name,
+                    instance_path=child_path,
+                    is_cycle_ref=True,
+                ))
+                continue
+
+            child_node = HierarchyNode(
+                module_name=child_mod_name,
+                instance_name=inst.instance_name,
+                instance_path=child_path,
+                file_path=inst.file_path,
+                line_start=inst.line,
+            )
+
+            # 标记 generate 展开实例
+            if inst.is_generated:
+                child_node.is_generated = True
+                child_node.generate_info = inst.generate_condition
+
+            self._expand_elab(child_node, child_mod_name, children_map, new_visited, depth + 1, max_depth)
+            node.children.append(child_node)
 
     def _expand(
         self,
@@ -234,6 +319,10 @@ class HierarchyBuilder:
                 lines.append(f"{prefix}{connector}{node.instance_name} → {node.module_name} ⚠️ (循环引用)")
                 return
 
+            gen_tag = ""
+            if node.is_generated:
+                gen_tag = f" [generate: {node.generate_info}]" if node.generate_info else " [generate]"
+
             port_info = ""
             if show_ports and node.ports:
                 port_names = ", ".join(f"{p.direction} {p.name}" for p in node.ports[:5])
@@ -241,7 +330,7 @@ class HierarchyBuilder:
                     port_names += f", ... (+{len(node.ports) - 5})"
                 port_info = f"  ports: {port_names}"
 
-            lines.append(f"{prefix}{connector}{node.instance_name} → {node.module_name}{port_info}")
+            lines.append(f"{prefix}{connector}{node.instance_name} → {node.module_name}{gen_tag}{port_info}")
 
             if node.children:
                 for i, child in enumerate(node.children):

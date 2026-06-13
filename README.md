@@ -1,6 +1,6 @@
 # Verilog MCP Server
 
-Verilog/SystemVerilog RTL 语义分析 MCP 服务器。基于 tree-sitter 解析 HDL 源文件，提取模块、端口、信号、例化、类型、package/import、SVA 断言、宏定义等完整设计信息，通过 MCP 协议对外暴露模块搜索、信号追踪、层次树构建、FSM 检测、时钟域分析和可视化等工具。
+Verilog/SystemVerilog RTL 语义分析 MCP 服务器。基于 tree-sitter 解析 HDL 源文件，结合 pyslang（slang 编译器前端）进行语义级 elaboration，通过 MCP 协议暴露模块搜索、信号追踪、层次树构建、FSM 检测、时钟域分析和可视化等工具。
 
 ## 安装
 
@@ -11,18 +11,37 @@ pip install -e .
 ## 使用
 
 ```bash
+# 查看版本
+verilog-mcp-server --version
+
 # 启动 MCP 服务器（stdio 传输，由 MCP 客户端调用）
 verilog-mcp-server
 
 # 启动时构建索引
 verilog-mcp-server --build -p /path/to/rtl/project
 
+# 指定 filelist 文件（自动提取 +incdir+ 和 +define+）
+verilog-mcp-server --build -f project.f
+
+# 指定顶层模块
+verilog-mcp-server --build -f project.f --top soc
+
 # 强制全量重建
 verilog-mcp-server --rebuild -p /path/to/rtl/project
-
-# 自定义缓存路径
-verilog-mcp-server --cache /path/to/cache.db
 ```
+
+### CLI 参数
+
+| 参数 | 说明 |
+|------|------|
+| `--version` | 显示版本号 |
+| `-p, --paths` | 要索引的项目路径（覆盖配置） |
+| `-f, --filelist` | 指定 .f 文件列表路径（支持多个） |
+| `-t, --top` | 指定顶层模块名 |
+| `--build` | 启动时构建索引（增量更新） |
+| `--rebuild` | 启动时强制全量重建 |
+| `--cache` | 缓存文件路径 |
+| `--log-level` | 日志级别 (DEBUG/INFO/WARNING/ERROR) |
 
 ### MCP 客户端配置
 
@@ -31,17 +50,23 @@ verilog-mcp-server --cache /path/to/cache.db
   "mcpServers": {
     "verilog": {
       "command": "verilog-mcp-server",
-      "args": ["--build", "-p", "/path/to/rtl"]
+      "args": ["--build", "-f", "/path/to/project.f", "--top", "soc"]
     }
   }
 }
 ```
 
-## 独立可执行文件
+### 离线可执行文件
+
+CentOS 8.4 兼容的独立可执行文件（无需 Python 环境）：
 
 ```bash
-python3 -m PyInstaller --clean verilog-mcp-server.spec
-./dist/verilog-mcp-server --build -p /path/to/rtl
+# 在 CentOS 8.4 上构建
+bash scripts/build-centos8.sh
+
+# 或使用预构建的 tar.gz
+tar xzf verilog-mcp-server-linux-x86_64.tar.gz
+./verilog-mcp-server --build -f project.f --top soc
 ```
 
 ## MCP 工具
@@ -55,7 +80,9 @@ python3 -m PyInstaller --clean verilog-mcp-server.spec
 | `rtl_module_ports` | 查询模块端口列表（方向/类型/位宽/signed，支持 ANSI 和非 ANSI 风格） |
 | `rtl_list_instances` | 列出模块中所有子模块例化 |
 | `rtl_search_signal` | 按名称搜索跨模块信号 |
-| `rtl_hierarchy` | 递归层次树（Mermaid 图 / 文本树 / 例化列表） |
+| `rtl_search_package` | 模糊搜索 package 定义（名称、类型、参数） |
+| `rtl_search_function` | 模糊搜索 function/task 定义（端口、返回类型） |
+| `rtl_hierarchy` | 递归层次树（优先使用 pyslang 数据，含 generate 展开） |
 
 ### Level 2 — 关联分析
 
@@ -80,6 +107,7 @@ python3 -m PyInstaller --clean verilog-mcp-server.spec
 | `rtl_cross_domain_signals` | 跨时钟域信号检测 — CDC 风险信号识别 |
 | `rtl_clock_tree` | 时钟树结构图 — 时钟传播路径和分频层次 |
 | `rtl_port_dataflow` | 端口到内部信号的数据流追踪 |
+| `rtl_sva_properties` | SVA 断言查询 — property/sequence/assert 列表 |
 
 ### Elaboration（pyslang 增强）
 
@@ -115,29 +143,31 @@ verilog_mcp_server/
 ├── config.yaml            # 默认配置
 │
 ├── indexer/               # tree-sitter 解析 + 数据提取
-│   ├── builder.py         # 全量/增量索引构建（mtime+SHA256 变更检测）
-│   ├── project_scanner.py # 文件发现、过滤（支持 .f 文件列表展开）
+│   ├── builder.py         # 全量/增量索引构建（支持并行解析）
+│   ├── project_scanner.py # 文件发现、.f 文件展开（+incdir+/+define+ 传递）
 │   ├── verilog_parser.py  # tree-sitter 封装
 │   ├── module_extractor.py
-│   ├── port_extractor.py  # 端口提取（ANSI + 非 ANSI 位宽/类型/signed）
+│   ├── port_extractor.py  # 端口提取（ANSI + 非 ANSI）
 │   ├── signal_extractor.py # 信号 + testbench 检测
-│   ├── instance_extractor.py
+│   ├── instance_extractor.py # 例化（含门级原语 + defparam）
 │   ├── type_extractor.py
 │   ├── package_extractor.py # package 定义 + import 声明
-│   ├── sva_extractor.py     # SVA 断言（immediate/concurrent/property/sequence）
-│   ├── macro_extractor.py   # `define 宏定义 + 条件编译分支
-│   ├── filelist_parser.py   # EDA .f 文件列表解析
-│   ├── pyslang_parser.py    # pyslang 解析封装（Compilation + elaboration）
-│   └── pyslang_extractor.py # pyslang elaboration 数据提取（generate 展开、参数求值）
+│   ├── sva_extractor.py     # SVA 断言
+│   ├── macro_extractor.py   # 宏定义
+│   ├── function_task_extractor.py # function/task 提取
+│   ├── filelist_parser.py   # .f 文件解析（+incdir+/+define+/+libdir+）
+│   ├── pyslang_parser.py    # pyslang 编译 + elaboration
+│   └── pyslang_extractor.py # pyslang 数据提取
 │
 ├── database/              # SQLite + 内存缓存
-│   ├── models.py          # 数据类：ModuleDef, PortDef, SignalDef, SvaDef, MacroDef, FileMeta 等
-│   ├── index_store.py     # 索引存储封装
+│   ├── models.py          # 数据类：ModuleDef, PortDef, SignalDef, PackageDef,
+│   │                      #   FunctionDef, SvaDef, MacroDef, InstanceDef 等
+│   ├── index_store.py     # 索引存储（模块/类型/package/function 查询）
 │   ├── sqlite_backend.py  # SQLite CRUD
 │   └── errors.py
 │
 ├── analysis/              # 分析引擎
-│   ├── hierarchy.py       # 模块层次树
+│   ├── hierarchy.py       # 模块层次树（优先 pyslang 数据）
 │   ├── fan_in.py          # 信号扇入追踪
 │   ├── fan_out.py         # 信号扇出追踪
 │   ├── fsm_detector.py    # 状态机检测
@@ -147,62 +177,84 @@ verilog_mcp_server/
 │   ├── cross_ref.py       # 交叉引用
 │   ├── expr_walker.py     # 表达式信号引用提取
 │   ├── signal_classifier.py
-│   └── visualizer.py      # 图谱生成（GraphData + vis.js HTML）
+│   └── visualizer.py      # 图谱生成（Mermaid + vis.js HTML）
 │
 ├── tools/                 # MCP 工具注册
-│   ├── level1_search.py   # Level 1 — 基础查询
+│   ├── level1_search.py   # Level 1 — 查询（含 package/function 搜索）
 │   ├── level2_relation.py # Level 2 — 关联分析
-│   ├── level3_analysis.py # Level 3 — 智能分析
+│   ├── level3_analysis.py # Level 3 — 智能分析（含 SVA 查询）
 │   ├── visualize.py       # 统一可视化
-│   └── elab_tools.py      # pyslang elaboration 报告工具
+│   └── elab_tools.py      # pyslang elaboration 报告
 │
-└── templates/
-    └── visualizer.html    # vis.js HTML 模板
+├── templates/
+│   └── visualizer.html    # vis.js HTML 模板
+│
+└── scripts/
+    ├── build-centos8.sh             # CentOS 8.4 构建脚本
+    └── tree_sitter_cache_hook.py    # PyInstaller runtime hook
 ```
 
 ## 技术栈
 
-- **解析**: tree-sitter-systemverilog + pyslang（slang 编译器前端 Python 绑定）
+- **解析**: tree-sitter + pyslang（slang 编译器前端）
   - tree-sitter：语法级解析，提取源码结构
-  - pyslang：语义级 elaboration，支持 generate 展开、参数求值、完整层次树
+  - pyslang：语义级 elaboration，generate 展开、参数求值、完整层次树
+  - 层次构建优先使用 pyslang 数据，tree-sitter 作为 fallback
 - **存储**: SQLite (WAL 模式) + 内存缓存
 - **协议**: MCP stdio（由 Claude Desktop / Claude Code 调用）
 - **可视化**: Mermaid（文本图）+ vis.js（交互式 HTML）
-- **打包**: PyInstaller 独立可执行文件
+- **打包**: PyInstaller 独立可执行文件（CentOS 8.4 兼容）
+- **并行**: `ProcessPoolExecutor` 多进程解析（≥10 文件自动启用）
 
 ## pyslang 集成
 
-pyslang 是 slang（业界公认最完整的开源 SystemVerilog 编译器前端）的官方 Python 绑定，通过 `pip install` 自动获得。
+pyslang 是 slang（业界公认最完整的开源 SystemVerilog 编译器前端）的官方 Python 绑定。
 
-### 启用/禁用
-
-在 `config.yaml` 中控制：
+### 配置
 
 ```yaml
 pyslang:
-  enabled: true          # 启用 pyslang elaboration
-  include_dirs: []       # include 搜索路径
-  defines: {}            # 预定义宏
-  top_module: ""         # 指定顶层模块（可选）
+  enabled: true
+  include_dirs: []       # include 搜索路径（自动合并 .f 文件的 +incdir+）
+  defines: {}            # 预定义宏（自动合并 .f 文件的 +define+）
+  top_module: ""         # 指定顶层模块
 ```
 
 ### 提供的能力
 
-- **generate 展开实例追踪**：`rtl_elab_instances` 显示 `genblk` 展开后的完整层次路径
-- **参数求值后位宽**：`rtl_get_module` 信号列表显示 `[pyslang: logic[15:0]]` 等 resolved 位宽
-- **Elaboration 报告**：`rtl_elab_report` 显示 elaboration 诊断信息、模块数量差异
+- **generate 展开实例追踪**：`rtl_elab_instances` 显示 genblk 展开后的完整层次路径
+- **参数求值后位宽**：`rtl_get_module` 信号列表显示 resolved 位宽
+- **完整层次树**：`rtl_hierarchy` 优先使用 pyslang 数据（含 generate 展开）
+- **Elaboration 报告**：`rtl_elab_report` 显示诊断信息
 
 ### 降级处理
 
-- pyslang 未安装时：自动跳过 elaboration，tree-sitter 索引完全不受影响
+- pyslang 未安装时：自动跳过，tree-sitter 索引不受影响
 - pyslang 解析失败时：记录警告，不阻塞索引构建
 - 增量构建：仅当变更涉及 parameter/generate/模块接口时触发 pyslang 重跑
 
-## 运行测试
+## Filelist 支持
+
+支持标准 EDA `.f` 文件列表格式：
 
 ```bash
-pytest tests/ -v
+verilog-mcp-server --build -f project.f
 ```
+
+`.f` 文件中的 `+incdir+` 和 `+define+` 自动传递给 pyslang 预处理器：
+
+```
+# project.f
++incdir+./include
++incdir+./rtl
++define+SIM
++define+BUS_WIDTH=32
+./rtl/top.sv
+./rtl/cpu.sv
+-f sub_module.f
+```
+
+## 运行测试
 
 ```bash
 pytest tests/ -v

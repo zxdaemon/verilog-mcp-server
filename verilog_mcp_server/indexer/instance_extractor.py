@@ -33,6 +33,11 @@ class InstanceExtractor:
             if child.kind() == "module_instantiation":
                 insts = self._extract_instantiation(child, source_text, file_path)
                 instances.extend(insts)
+            elif child.kind() == "gate_instantiation":
+                insts = self._extract_gate_instantiation(child, source_text, file_path)
+                instances.extend(insts)
+            elif child.kind() == "continuous_assign":
+                pass  # defparam handled separately
 
         return instances
 
@@ -191,3 +196,86 @@ class InstanceExtractor:
                 overrides[name] = value
 
         return overrides
+
+    # ── 门级原语 ──
+
+    _GATE_PRIMITIVES = {
+        "and", "or", "nand", "nor", "xor", "xnor",
+        "buf", "not", "bufif0", "bufif1", "notif0", "notif1",
+    }
+
+    def _extract_gate_instantiation(self, node, source_text: str, file_path: str) -> list[InstanceDef]:
+        """提取门级原语例化"""
+        instances = []
+        gate_type = None
+        line = get_node_line(node)
+
+        for i in range(node.child_count()):
+            child = node.child(i)
+            ckind = child.kind()
+            if ckind == "simple_identifier":
+                gate_type = get_node_text(child, source_text)
+            elif ckind in ("gatetype_switch", "cmos_switchtype"):
+                gate_type = get_node_text(child, source_text).lower()
+
+        if not gate_type or gate_type not in self._GATE_PRIMITIVES:
+            # 通过 AST 类型名判断
+            first = node.child(0)
+            if first:
+                text = get_node_text(first, source_text).lower().split()[0]
+                if text in self._GATE_PRIMITIVES:
+                    gate_type = text
+
+        if not gate_type:
+            return instances
+
+        # 提取端口连接（位置绑定）
+        pos_index = 0
+        inst_name = f"__gate_{gate_type}_{line}"
+        port_connections = {}
+
+        for child in _iter_children(node):
+            if child.kind() in ("name_of_instance", "simple_identifier"):
+                name = get_node_text(child, source_text)
+                if name != gate_type and not name.startswith("("):
+                    inst_name = name
+            elif child.kind() in ("list_of_port_connections", "gate_instance"):
+                for gc in _iter_children(child):
+                    if gc.kind() in ("expression", "simple_identifier"):
+                        port_connections[f"__pos_{pos_index}"] = get_node_text(gc, source_text)
+                        pos_index += 1
+
+        instances.append(InstanceDef(
+            module_type=gate_type,
+            instance_name=inst_name,
+            port_connections=port_connections,
+            param_overrides={},
+            file_path=file_path,
+            line=line,
+            is_primitive=True,
+        ))
+        return instances
+
+    # ── defparam ──
+
+    def collect_defparams(self, module_node, source_text: str) -> dict[str, str]:
+        """从模块体收集所有 defparam 语句"""
+        overrides = {}
+        for child in iter_module_body_deep(module_node):
+            if child.kind() in ("non_port_module_item", "module_item"):
+                for gc in _iter_children(child):
+                    if gc.kind() == "defparam_assignment":
+                        self._parse_defparam(gc, source_text, overrides)
+        return overrides
+
+    def _parse_defparam(self, node, source_text: str, overrides: dict[str, str]):
+        """解析单个 defparam 赋值"""
+        text = get_node_text(node, source_text)
+        if "=" in text:
+            path, _, value = text.partition("=")
+            overrides[path.strip()] = value.strip()
+
+
+def _iter_children(node):
+    for i in range(node.child_count()):
+        yield node.child(i)

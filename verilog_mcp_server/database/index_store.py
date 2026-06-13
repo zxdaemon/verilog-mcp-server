@@ -48,6 +48,8 @@ class IndexStore:
         # 信号索引（端口名 + 信号名）
         self._signal_index: dict[str, list[tuple[str, str]]] = {}
         self._types: dict[str, TypeDef] = {}
+        self._packages: dict[str, PackageDef] = {}
+        self._functions: dict[str, FunctionDef] = {}
         # 已加载完整数据的模块名集合
         self._loaded: set[str] = set()
         # Elaboration 数据内存缓存
@@ -422,6 +424,8 @@ class IndexStore:
         self._range_keys.clear()
         self._signal_index.clear()
         self._types.clear()
+        self._packages.clear()
+        self._functions.clear()
         self._loaded.clear()
         self._elab_cache: dict[str, Any] = {}
         if self._db:

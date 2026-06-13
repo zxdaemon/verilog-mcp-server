@@ -19,6 +19,7 @@ from .type_extractor import TypeExtractor
 from .package_extractor import PackageExtractor
 from .sva_extractor import SvaExtractor
 from .macro_extractor import MacroExtractor
+from .function_task_extractor import FunctionTaskExtractor
 from .pyslang_parser import PyslangParser, is_pyslang_available
 from .pyslang_extractor import PyslangExtractor
 from ..database.index_store import IndexStore
@@ -42,6 +43,7 @@ class IndexBuilder:
         self.package_extractor = PackageExtractor()
         self.sva_extractor = SvaExtractor()
         self.macro_extractor = MacroExtractor()
+        self.function_task_extractor = FunctionTaskExtractor()
         self.pyslang_extractor = PyslangExtractor()
 
     def build(self, incremental: bool = False) -> IndexStore:
@@ -61,17 +63,16 @@ class IndexBuilder:
         parsed_count = 0
         module_count = 0
 
-        for i, file_path in enumerate(files):
-            fp = str(file_path)
-            result = parse_file(fp)
-            if result is None:
-                continue
+        # 并行解析（文件数 >= 10 时启用）
+        max_workers = self.config.get("index", {}).get("max_workers", None)
+        parsed_results = self._parse_files(files, max_workers=max_workers)
 
-            tree, source_text = result
+        for i, (fp, tree, source_text) in enumerate(parsed_results):
             parsed_count += 1
 
             # 文件级: 提取 package 定义和宏
             for pkg in self.package_extractor.extract_package_defs(tree, source_text, fp):
+                self.index_store.add_package(pkg)
                 for td in pkg.typedefs:
                     self.index_store.add_type(td)
 
@@ -85,6 +86,8 @@ class IndexBuilder:
                     module_node, source_text)
                 mod.assertions = self.sva_extractor.extract_from_module(
                     module_node, source_text)
+                for func in self.function_task_extractor.extract_from_module(module_node, source_text, fp):
+                    self.index_store.add_function(func)
                 mod.is_testbench, mod.has_non_synth_constructs = \
                     self.signal_extractor.detect_testbench(module_node, source_text)
                 body_node = module_node
@@ -120,6 +123,41 @@ class IndexBuilder:
         self._run_pyslang_elaboration(file_paths=files, filelist_incdirs=filelist_incdirs, filelist_defines=filelist_defines)
 
         return self.index_store
+
+    def _parse_files(self, files, max_workers=None) -> list[tuple[str, object, str]]:
+        """解析文件列表，支持并行（>=10 文件时自动并行）"""
+        from .verilog_parser import parse_single_file
+
+        PARALLEL_THRESHOLD = 10
+        file_strs = [str(f) for f in files]
+
+        if len(file_strs) < PARALLEL_THRESHOLD:
+            # 串行解析
+            results = []
+            for fp in file_strs:
+                r = parse_single_file(fp)
+                if r:
+                    results.append(r)
+            return results
+
+        # 并行解析
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        import multiprocessing
+
+        if max_workers is None:
+            max_workers = min(multiprocessing.cpu_count(), 8)
+
+        logger.info(f"并行解析 {len(file_strs)} 文件 (workers={max_workers})")
+        results = []
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(parse_single_file, fp): fp for fp in file_strs}
+            for future in as_completed(futures):
+                r = future.result()
+                if r:
+                    results.append(r)
+
+        logger.info(f"并行解析完成: {len(results)}/{len(file_strs)} 文件")
+        return results
 
     def _run_pyslang_elaboration(self, file_paths: list = None, force: bool = False,
                                  filelist_incdirs: list[str] = None,
@@ -364,6 +402,7 @@ class IndexBuilder:
 
         # 文件级: 提取 package 定义
         for pkg in self.package_extractor.extract_package_defs(tree, source_text, file_path):
+            self.index_store.add_package(pkg)
             for td in pkg.typedefs:
                 self.index_store.add_type(td)
 
@@ -378,6 +417,8 @@ class IndexBuilder:
                 module_node, source_text)
             mod.assertions = self.sva_extractor.extract_from_module(
                 module_node, source_text)
+            for func in self.function_task_extractor.extract_from_module(module_node, source_text, file_path):
+                self.index_store.add_function(func)
             body_node = module_node
             mod.signals = self.signal_extractor.extract_signals(body_node, source_text)
             mod.instances = self.instance_extractor.extract_from_module_body(body_node, source_text, file_path)

@@ -121,6 +121,7 @@ class InstanceDef(SerializableModel):
     param_overrides: dict[str, str] = field(default_factory=dict)   # {param_name: override_value}
     file_path: str = ""
     line: int = 0
+    is_primitive: bool = False
 
 
 @dataclass
@@ -181,6 +182,18 @@ class SvaDef(SerializableModel):
     clock: str = ""      # clocking event, e.g. "@(posedge clk)"
     action: str = ""     # pass/fail action block text
     body: str = ""       # property/sequence body text
+
+
+@dataclass
+class FunctionDef(SerializableModel):
+    """function / task 定义"""
+    name: str
+    kind: str = "function"         # function / task
+    return_type: str = ""          # 返回类型 (logic, int, void, 等)
+    ports: list[PortDef] = field(default_factory=list)
+    body: str = ""                 # 函数体文本
+    file_path: str = ""
+    line: int = 0
 
 
 @dataclass

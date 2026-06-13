@@ -47,6 +47,48 @@ def register_tools(mcp: "FastMCP", index_store: "IndexStore"):
         except DomainError as e:
             return f"❌ {e}"
 
+
+    @mcp.tool()
+    def rtl_sva_properties(module_name: str) -> str:
+        """
+        获取模块的 SVA 断言（property/sequence/assert）
+
+        Args:
+            module_name: 模块名
+
+        Returns:
+            模块中所有 SVA 断言列表
+        """
+        from ..database.errors import ModuleNotFoundError
+        try:
+            mod = index_store.get_module(module_name)
+            if mod is None:
+                results = index_store.search_modules(module_name)
+                if results:
+                    mod = results[0]
+                else:
+                    return f"未找到模块 '{module_name}'"
+        except ModuleNotFoundError:
+            return f"未找到模块 '{module_name}'"
+
+        assertions = mod.assertions
+        if not assertions:
+            return f"模块 '{mod.name}' 没有 SVA 断言"
+
+        lines = [f"模块 '{mod.name}' 的 SVA 断言 ({len(assertions)}):\n"]
+        for sva in assertions:
+            kind = sva.kind or "assert"
+            lines.append(f"### {sva.name or '(匿名)'}")
+            lines.append(f"- 类型: {kind}")
+            if sva.clock:
+                lines.append(f"- 时钟: {sva.clock}")
+            if sva.expression:
+                lines.append(f"- 表达式: {sva.expression[:100]}")
+            lines.append(f"- 位置: `{sva.file_path}` 行 {sva.line}")
+            lines.append("")
+
+        return "\n".join(lines)
+
         if result.fsm_count == 0:
             return f"ℹ️ 模块 `{module_name}` 中未检测到有限状态机（未找到 `case` + `next_state` 模式）"
 
@@ -97,6 +139,84 @@ def register_tools(mcp: "FastMCP", index_store: "IndexStore"):
         except DomainError as e:
             return f"❌ {e}"
 
+    @mcp.tool()
+    def rtl_parameter_values(module_name: str) -> str:
+        """
+        获取模块的参数传播值
+
+        从指定顶层模块开始 BFS 遍历例化树，传播参数实际值。
+
+        Args:
+            module_name: 顶层模块名
+
+        Returns:
+            该模块及其子模块的参数传播结果
+        """
+        from ..analysis.param_propagator import ParamPropagator
+
+        top = index_store.get_module(module_name)
+        if top is None:
+            results = index_store.search_modules(module_name)
+            if results:
+                top = results[0]
+                module_name = top.name
+            else:
+                return f"未找到模块 '{module_name}'"
+
+        propagator = ParamPropagator(index_store, top_module=module_name)
+        resolved = propagator.propagate()
+
+        if not resolved:
+            return f"模块 '{module_name}' 无参数传播数据"
+
+        lines = [f"# 参数传播: {module_name}\n"]
+        for mod_name, params in sorted(resolved.items()):
+            lines.append(ParamPropagator.format_params(mod_name, params))
+            lines.append("")
+
+        return "\n".join(lines)
+
+    @mcp.tool()
+    def rtl_sva_properties(module_name: str) -> str:
+        """
+        获取模块的 SVA 断言（property/sequence/assert）
+
+        Args:
+            module_name: 模块名
+
+        Returns:
+            模块中所有 SVA 断言列表
+        """
+        from ..database.errors import ModuleNotFoundError
+        try:
+            mod = index_store.get_module(module_name)
+            if mod is None:
+                results = index_store.search_modules(module_name)
+                if results:
+                    mod = results[0]
+                else:
+                    return f"未找到模块 '{module_name}'"
+        except ModuleNotFoundError:
+            return f"未找到模块 '{module_name}'"
+
+        assertions = mod.assertions
+        if not assertions:
+            return f"模块 '{mod.name}' 没有 SVA 断言"
+
+        lines = [f"模块 '{mod.name}' 的 SVA 断言 ({len(assertions)}):\n"]
+        for sva in assertions:
+            kind = sva.kind or "assert"
+            lines.append(f"### {sva.name or '(匿名)'}")
+            lines.append(f"- 类型: {kind}")
+            if sva.clock:
+                lines.append(f"- 时钟: {sva.clock}")
+            if sva.expression:
+                lines.append(f"- 表达式: {sva.expression[:100]}")
+            lines.append(f"- 位置: `{sva.file_path}` 行 {sva.line}")
+            lines.append("")
+
+        return "\n".join(lines)
+
         if not result.clock_domains:
             return f"ℹ️ 模块 `{module_name}` 中未检测到时钟域"
 
@@ -136,6 +256,84 @@ def register_tools(mcp: "FastMCP", index_store: "IndexStore"):
         except DomainError as e:
             return f"❌ {e}"
 
+    @mcp.tool()
+    def rtl_parameter_values(module_name: str) -> str:
+        """
+        获取模块的参数传播值
+
+        从指定顶层模块开始 BFS 遍历例化树，传播参数实际值。
+
+        Args:
+            module_name: 顶层模块名
+
+        Returns:
+            该模块及其子模块的参数传播结果
+        """
+        from ..analysis.param_propagator import ParamPropagator
+
+        top = index_store.get_module(module_name)
+        if top is None:
+            results = index_store.search_modules(module_name)
+            if results:
+                top = results[0]
+                module_name = top.name
+            else:
+                return f"未找到模块 '{module_name}'"
+
+        propagator = ParamPropagator(index_store, top_module=module_name)
+        resolved = propagator.propagate()
+
+        if not resolved:
+            return f"模块 '{module_name}' 无参数传播数据"
+
+        lines = [f"# 参数传播: {module_name}\n"]
+        for mod_name, params in sorted(resolved.items()):
+            lines.append(ParamPropagator.format_params(mod_name, params))
+            lines.append("")
+
+        return "\n".join(lines)
+
+    @mcp.tool()
+    def rtl_sva_properties(module_name: str) -> str:
+        """
+        获取模块的 SVA 断言（property/sequence/assert）
+
+        Args:
+            module_name: 模块名
+
+        Returns:
+            模块中所有 SVA 断言列表
+        """
+        from ..database.errors import ModuleNotFoundError
+        try:
+            mod = index_store.get_module(module_name)
+            if mod is None:
+                results = index_store.search_modules(module_name)
+                if results:
+                    mod = results[0]
+                else:
+                    return f"未找到模块 '{module_name}'"
+        except ModuleNotFoundError:
+            return f"未找到模块 '{module_name}'"
+
+        assertions = mod.assertions
+        if not assertions:
+            return f"模块 '{mod.name}' 没有 SVA 断言"
+
+        lines = [f"模块 '{mod.name}' 的 SVA 断言 ({len(assertions)}):\n"]
+        for sva in assertions:
+            kind = sva.kind or "assert"
+            lines.append(f"### {sva.name or '(匿名)'}")
+            lines.append(f"- 类型: {kind}")
+            if sva.clock:
+                lines.append(f"- 时钟: {sva.clock}")
+            if sva.expression:
+                lines.append(f"- 表达式: {sva.expression[:100]}")
+            lines.append(f"- 位置: `{sva.file_path}` 行 {sva.line}")
+            lines.append("")
+
+        return "\n".join(lines)
+
         lines = [
             f"# 复位域分析: {module_name}",
             f"",
@@ -174,6 +372,84 @@ def register_tools(mcp: "FastMCP", index_store: "IndexStore"):
             result = always_classifier.classify(module_name)
         except DomainError as e:
             return f"❌ {e}"
+
+    @mcp.tool()
+    def rtl_parameter_values(module_name: str) -> str:
+        """
+        获取模块的参数传播值
+
+        从指定顶层模块开始 BFS 遍历例化树，传播参数实际值。
+
+        Args:
+            module_name: 顶层模块名
+
+        Returns:
+            该模块及其子模块的参数传播结果
+        """
+        from ..analysis.param_propagator import ParamPropagator
+
+        top = index_store.get_module(module_name)
+        if top is None:
+            results = index_store.search_modules(module_name)
+            if results:
+                top = results[0]
+                module_name = top.name
+            else:
+                return f"未找到模块 '{module_name}'"
+
+        propagator = ParamPropagator(index_store, top_module=module_name)
+        resolved = propagator.propagate()
+
+        if not resolved:
+            return f"模块 '{module_name}' 无参数传播数据"
+
+        lines = [f"# 参数传播: {module_name}\n"]
+        for mod_name, params in sorted(resolved.items()):
+            lines.append(ParamPropagator.format_params(mod_name, params))
+            lines.append("")
+
+        return "\n".join(lines)
+
+    @mcp.tool()
+    def rtl_sva_properties(module_name: str) -> str:
+        """
+        获取模块的 SVA 断言（property/sequence/assert）
+
+        Args:
+            module_name: 模块名
+
+        Returns:
+            模块中所有 SVA 断言列表
+        """
+        from ..database.errors import ModuleNotFoundError
+        try:
+            mod = index_store.get_module(module_name)
+            if mod is None:
+                results = index_store.search_modules(module_name)
+                if results:
+                    mod = results[0]
+                else:
+                    return f"未找到模块 '{module_name}'"
+        except ModuleNotFoundError:
+            return f"未找到模块 '{module_name}'"
+
+        assertions = mod.assertions
+        if not assertions:
+            return f"模块 '{mod.name}' 没有 SVA 断言"
+
+        lines = [f"模块 '{mod.name}' 的 SVA 断言 ({len(assertions)}):\n"]
+        for sva in assertions:
+            kind = sva.kind or "assert"
+            lines.append(f"### {sva.name or '(匿名)'}")
+            lines.append(f"- 类型: {kind}")
+            if sva.clock:
+                lines.append(f"- 时钟: {sva.clock}")
+            if sva.expression:
+                lines.append(f"- 表达式: {sva.expression[:100]}")
+            lines.append(f"- 位置: `{sva.file_path}` 行 {sva.line}")
+            lines.append("")
+
+        return "\n".join(lines)
 
         lines = [
             f"# Always 块分类: {module_name}",
@@ -251,6 +527,84 @@ def register_tools(mcp: "FastMCP", index_store: "IndexStore"):
         except DomainError as e:
             return f"❌ {e}"
 
+    @mcp.tool()
+    def rtl_parameter_values(module_name: str) -> str:
+        """
+        获取模块的参数传播值
+
+        从指定顶层模块开始 BFS 遍历例化树，传播参数实际值。
+
+        Args:
+            module_name: 顶层模块名
+
+        Returns:
+            该模块及其子模块的参数传播结果
+        """
+        from ..analysis.param_propagator import ParamPropagator
+
+        top = index_store.get_module(module_name)
+        if top is None:
+            results = index_store.search_modules(module_name)
+            if results:
+                top = results[0]
+                module_name = top.name
+            else:
+                return f"未找到模块 '{module_name}'"
+
+        propagator = ParamPropagator(index_store, top_module=module_name)
+        resolved = propagator.propagate()
+
+        if not resolved:
+            return f"模块 '{module_name}' 无参数传播数据"
+
+        lines = [f"# 参数传播: {module_name}\n"]
+        for mod_name, params in sorted(resolved.items()):
+            lines.append(ParamPropagator.format_params(mod_name, params))
+            lines.append("")
+
+        return "\n".join(lines)
+
+    @mcp.tool()
+    def rtl_sva_properties(module_name: str) -> str:
+        """
+        获取模块的 SVA 断言（property/sequence/assert）
+
+        Args:
+            module_name: 模块名
+
+        Returns:
+            模块中所有 SVA 断言列表
+        """
+        from ..database.errors import ModuleNotFoundError
+        try:
+            mod = index_store.get_module(module_name)
+            if mod is None:
+                results = index_store.search_modules(module_name)
+                if results:
+                    mod = results[0]
+                else:
+                    return f"未找到模块 '{module_name}'"
+        except ModuleNotFoundError:
+            return f"未找到模块 '{module_name}'"
+
+        assertions = mod.assertions
+        if not assertions:
+            return f"模块 '{mod.name}' 没有 SVA 断言"
+
+        lines = [f"模块 '{mod.name}' 的 SVA 断言 ({len(assertions)}):\n"]
+        for sva in assertions:
+            kind = sva.kind or "assert"
+            lines.append(f"### {sva.name or '(匿名)'}")
+            lines.append(f"- 类型: {kind}")
+            if sva.clock:
+                lines.append(f"- 时钟: {sva.clock}")
+            if sva.expression:
+                lines.append(f"- 表达式: {sva.expression[:100]}")
+            lines.append(f"- 位置: `{sva.file_path}` 行 {sva.line}")
+            lines.append("")
+
+        return "\n".join(lines)
+
         return "\n".join(lines)
 
     @mcp.tool()
@@ -296,6 +650,84 @@ def register_tools(mcp: "FastMCP", index_store: "IndexStore"):
             return f"❌ {e}"
 
     @mcp.tool()
+    def rtl_parameter_values(module_name: str) -> str:
+        """
+        获取模块的参数传播值
+
+        从指定顶层模块开始 BFS 遍历例化树，传播参数实际值。
+
+        Args:
+            module_name: 顶层模块名
+
+        Returns:
+            该模块及其子模块的参数传播结果
+        """
+        from ..analysis.param_propagator import ParamPropagator
+
+        top = index_store.get_module(module_name)
+        if top is None:
+            results = index_store.search_modules(module_name)
+            if results:
+                top = results[0]
+                module_name = top.name
+            else:
+                return f"未找到模块 '{module_name}'"
+
+        propagator = ParamPropagator(index_store, top_module=module_name)
+        resolved = propagator.propagate()
+
+        if not resolved:
+            return f"模块 '{module_name}' 无参数传播数据"
+
+        lines = [f"# 参数传播: {module_name}\n"]
+        for mod_name, params in sorted(resolved.items()):
+            lines.append(ParamPropagator.format_params(mod_name, params))
+            lines.append("")
+
+        return "\n".join(lines)
+
+    @mcp.tool()
+    def rtl_sva_properties(module_name: str) -> str:
+        """
+        获取模块的 SVA 断言（property/sequence/assert）
+
+        Args:
+            module_name: 模块名
+
+        Returns:
+            模块中所有 SVA 断言列表
+        """
+        from ..database.errors import ModuleNotFoundError
+        try:
+            mod = index_store.get_module(module_name)
+            if mod is None:
+                results = index_store.search_modules(module_name)
+                if results:
+                    mod = results[0]
+                else:
+                    return f"未找到模块 '{module_name}'"
+        except ModuleNotFoundError:
+            return f"未找到模块 '{module_name}'"
+
+        assertions = mod.assertions
+        if not assertions:
+            return f"模块 '{mod.name}' 没有 SVA 断言"
+
+        lines = [f"模块 '{mod.name}' 的 SVA 断言 ({len(assertions)}):\n"]
+        for sva in assertions:
+            kind = sva.kind or "assert"
+            lines.append(f"### {sva.name or '(匿名)'}")
+            lines.append(f"- 类型: {kind}")
+            if sva.clock:
+                lines.append(f"- 时钟: {sva.clock}")
+            if sva.expression:
+                lines.append(f"- 表达式: {sva.expression[:100]}")
+            lines.append(f"- 位置: `{sva.file_path}` 行 {sva.line}")
+            lines.append("")
+
+        return "\n".join(lines)
+
+    @mcp.tool()
     def rtl_port_dataflow(
         module_name: str, port_name: str, direction: str = "both", max_depth: int = 5
     ) -> str:
@@ -329,3 +761,81 @@ def register_tools(mcp: "FastMCP", index_store: "IndexStore"):
             )
         except DomainError as e:
             return f"❌ {e}"
+
+    @mcp.tool()
+    def rtl_parameter_values(module_name: str) -> str:
+        """
+        获取模块的参数传播值
+
+        从指定顶层模块开始 BFS 遍历例化树，传播参数实际值。
+
+        Args:
+            module_name: 顶层模块名
+
+        Returns:
+            该模块及其子模块的参数传播结果
+        """
+        from ..analysis.param_propagator import ParamPropagator
+
+        top = index_store.get_module(module_name)
+        if top is None:
+            results = index_store.search_modules(module_name)
+            if results:
+                top = results[0]
+                module_name = top.name
+            else:
+                return f"未找到模块 '{module_name}'"
+
+        propagator = ParamPropagator(index_store, top_module=module_name)
+        resolved = propagator.propagate()
+
+        if not resolved:
+            return f"模块 '{module_name}' 无参数传播数据"
+
+        lines = [f"# 参数传播: {module_name}\n"]
+        for mod_name, params in sorted(resolved.items()):
+            lines.append(ParamPropagator.format_params(mod_name, params))
+            lines.append("")
+
+        return "\n".join(lines)
+
+    @mcp.tool()
+    def rtl_sva_properties(module_name: str) -> str:
+        """
+        获取模块的 SVA 断言（property/sequence/assert）
+
+        Args:
+            module_name: 模块名
+
+        Returns:
+            模块中所有 SVA 断言列表
+        """
+        from ..database.errors import ModuleNotFoundError
+        try:
+            mod = index_store.get_module(module_name)
+            if mod is None:
+                results = index_store.search_modules(module_name)
+                if results:
+                    mod = results[0]
+                else:
+                    return f"未找到模块 '{module_name}'"
+        except ModuleNotFoundError:
+            return f"未找到模块 '{module_name}'"
+
+        assertions = mod.assertions
+        if not assertions:
+            return f"模块 '{mod.name}' 没有 SVA 断言"
+
+        lines = [f"模块 '{mod.name}' 的 SVA 断言 ({len(assertions)}):\n"]
+        for sva in assertions:
+            kind = sva.kind or "assert"
+            lines.append(f"### {sva.name or '(匿名)'}")
+            lines.append(f"- 类型: {kind}")
+            if sva.clock:
+                lines.append(f"- 时钟: {sva.clock}")
+            if sva.expression:
+                lines.append(f"- 表达式: {sva.expression[:100]}")
+            lines.append(f"- 位置: `{sva.file_path}` 行 {sva.line}")
+            lines.append("")
+
+        return "\n".join(lines)
