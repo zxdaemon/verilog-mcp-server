@@ -26,3 +26,5 @@ reports/
 test_top.v
 uv.lock
 requirements.txt
+CLAUDE.md
+openspec/
