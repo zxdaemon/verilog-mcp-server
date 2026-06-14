@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-Verilog/SystemVerilog RTL 语义分析 MCP 服务器。使用 tree-sitter 解析 HDL 源文件，通过 MCP 工具暴露模块搜索、信号追踪、层次树构建、FSM 检测和时钟域分析等功能。
+Verilog/SystemVerilog RTL 语义分析 MCP 服务器。使用 tree-sitter 解析 HDL 源文件，结合 pyslang（slang 编译器前端）进行语义级 elaboration，通过 MCP 工具暴露模块搜索、信号追踪、层次树构建、FSM 检测、时钟域分析和可视化等功能。
 
 ## 命令
 
@@ -12,74 +12,86 @@ Verilog/SystemVerilog RTL 语义分析 MCP 服务器。使用 tree-sitter 解析
 # 安装（可编辑模式）
 pip install -e .
 
-# 启动 MCP 服务器（stdio 传输 — 由 MCP 客户端调用）
+# 启动 MCP 服务器（stdio 传输）
 verilog-mcp-server
 
-# 启动时构建索引（已有索引时自动增量更新）
+# 启动时构建索引
 verilog-mcp-server --build -p /path/to/rtl/project
+
+# 指定 filelist + 顶层模块
+verilog-mcp-server --build -f project.f --top soc
 
 # 或通过模块方式启动
 python -m verilog_mcp_server --build -p /path/to/rtl/project
 
-# 运行测试（pytest）
+# 运行测试
 pytest tests/ -v
 ```
 
 ## 架构
 
 ```
-verilog_mcp_server/        # Python 包（pip install 后可独立使用）
-├── __init__.py            # 包入口，导出 main/create_app/load_config
-├── __main__.py            # python -m verilog_mcp_server 支持
-├── server.py              # FastMCP 应用创建、CLI 参数解析、stdio 服务器启动
-├── config.yaml            # 默认配置（索引路径、文件扩展名、排除规则、缓存设置）
+verilog_mcp_server/
+├── __init__.py / __main__.py # 包入口
+├── server.py                 # FastMCP 应用 + CLI (--filelist/--top/--version)
+├── config.yaml               # 默认配置
 │
-├── indexer/               # 用 tree-sitter 解析 RTL 文件，提取结构化数据
-│   ├── builder.py         # 协调索引构建（全量/增量：扫描 → 解析 → 提取 → 存储，支持 mtime+SHA256 变更检测）
-│   ├── project_scanner.py # 发现 .v/.sv/.svh 文件，应用排除规则
-│   ├── verilog_parser.py  # tree-sitter 封装（parse_file、AST 辅助函数、节点遍历）
-│   ├── module_extractor.py# 查找 module_declaration 节点，提取模块名和位置
-│   ├── port_extractor.py  # 从 ANSI 端口声明中提取方向/类型/宽度
-│   ├── signal_extractor.py# 提取 wire/reg/logic、assign 语句、always 块
-│   ├── instance_extractor.py # 提取模块例化及端口连接
-│   └── type_extractor.py  # 提取 struct/enum/typedef 定义
+├── indexer/                  # tree-sitter 解析 + 数据提取
+│   ├── builder.py            # 全量/增量索引构建（并行解析支持）
+│   ├── project_scanner.py    # 文件发现、.f 文件展开、incdirs/defines 传递
+│   ├── verilog_parser.py     # tree-sitter 封装（parse + AST 遍历辅助）
+│   ├── module_extractor.py   # module_declaration 提取
+│   ├── port_extractor.py     # ANSI + 非 ANSI 端口提取
+│   ├── signal_extractor.py   # 信号 + assign + always 块 + testbench 检测
+│   ├── instance_extractor.py # 例化（含门级原语 + defparam）
+│   ├── type_extractor.py     # struct/enum/typedef
+│   ├── package_extractor.py  # package 定义 + import 声明
+│   ├── sva_extractor.py      # SVA 断言（immediate/concurrent/property/sequence）
+│   ├── macro_extractor.py    # 宏定义 + 条件编译
+│   ├── function_task_extractor.py # function/task 提取
+│   ├── filelist_parser.py    # .f 文件解析（+incdir+/+define+/+libdir+）
+│   ├── pyslang_parser.py     # pyslang 编译 + elaboration
+│   └── pyslang_extractor.py  # pyslang 数据提取（generate 展开、resolved 信号）
 │
-├── database/              # SQLite 持久化 + 内存缓存
-│   ├── models.py          # 数据类：ModuleDef、PortDef、SignalDef、InstanceDef 等
-│   ├── index_store.py     # 索引存储（SQLite 后端 + 内存缓存）
-│   ├── sqlite_backend.py  # SQLite CRUD 操作
-│   └── errors.py          # 领域异常定义
+├── database/                 # SQLite + 内存缓存
+│   ├── models.py             # 数据类：ModuleDef, PortDef, FunctionDef, SvaDef, PackageDef 等
+│   ├── index_store.py        # 索引存储（模块/类型/package/function 查询）
+│   ├── sqlite_backend.py     # SQLite CRUD
+│   └── errors.py
 │
-├── analysis/              # 供 Level 2 和 Level 3 工具调用的分析引擎
-│   ├── hierarchy.py       # 递归模块层次树构建
-│   ├── dataflow.py        # 跨模块信号追踪（扇入/扇出）
-│   ├── fan_in.py          # 信号 Fan-in 追踪引擎
-│   ├── fan_out.py         # 信号 Fan-out 追踪引擎
-│   ├── cross_ref.py       # "何处使用"查询、例化端口连接详情
-│   ├── expr_walker.py     # 表达式信号引用提取
-│   ├── signal_classifier.py # 时钟/复位信号统一识别
-│   ├── fsm_detector.py    # 通过 case/next_state 模式检测状态机
-│   ├── clock_analyzer.py  # 时钟域分组、复位检测、跨时钟域信号
-│   ├── clock_tree.py      # 时钟域结构图构建
-│   ├── always_classify.py # 分类 always 块（时序/组合/锁存器）
-│   └── visualizer.py      # 可视化图谱生成（GraphData 模型、Mermaid 转换、HtmlVisualizer）
+├── analysis/                 # 分析引擎
+│   ├── hierarchy.py          # 层次树（优先 pyslang 数据，含 generate 展开）
+│   ├── fan_in.py / fan_out.py # 信号扇入/扇出追踪
+│   ├── fsm_detector.py       # 状态机检测
+│   ├── clock_analyzer.py     # 时钟域分析
+│   ├── clock_tree.py         # 时钟域层次映射
+│   ├── always_classify.py    # always 块分类
+│   ├── cross_ref.py          # 交叉引用
+│   ├── dataflow.py           # 端口数据流追踪
+│   └── visualizer.py         # 图谱生成（Mermaid + vis.js HTML）
 │
-└── tools/                 # MCP 工具注册（基于装饰器，绑定到 FastMCP）
-    ├── level1_search.py   # rtl_search_module、rtl_get_module、rtl_module_ports 等
-    ├── level2_relation.py # rtl_trace_signal、rtl_signal_fan_in/out、rtl_where_used 等
-    ├── level3_analysis.py # rtl_detect_fsm、rtl_clock_domains、rtl_always_classify 等
-    └── visualize.py       # rtl_visualize 统一可视化工具（Mermaid / HTML）
+├── tools/                    # MCP 工具注册
+│   ├── level1_search.py      # Level 1 查询（含 package/function 搜索）
+│   ├── level2_relation.py    # Level 2 关联分析
+│   ├── level3_analysis.py    # Level 3 智能分析（含 SVA 查询）
+│   ├── visualize.py          # 统一可视化
+│   └── elab_tools.py         # pyslang elaboration 报告
+│
+├── templates/visualizer.html # vis.js HTML 模板
+└── scripts/                  # 构建脚本
+    ├── build-centos8.sh      # CentOS 8.4 PyInstaller 构建
+    └── tree_sitter_cache_hook.py # PyInstaller runtime hook
 ```
-
-## 代码阅读
-
-- **读取代码优先使用 CodeGraph 代码图谱**（`codegraph_*` 系列工具），而非直接 Read/Grep。CodeGraph 基于 tree-sitter AST 解析，提供符号搜索、调用关系、影响分析等结构化查询能力，比文本搜索更快更准确。
 
 ## 关键设计决策
 
-- **全部使用 tree-sitter-systemverilog 解析**（可在 config.yaml 中配置，但 SV 解析器可同时处理 Verilog 和 SystemVerilog）。不使用基于正则的解析。
-- **SQLite 持久化 + 内存缓存**，数据库文件默认 `.verilog_mcp/cache.db`（工作目录下隐藏文件夹）。启动时自动加载，支持增量构建（仅重新解析变更文件）。
-- **传输方式为 stdio** — 这是一个 MCP 服务器，而非 HTTP 服务器。由 MCP 客户端（Claude Desktop、Claude Code 等）调用。
-- **三级工具设计**：Level 1 = 简单查询（读索引）、Level 2 = 跨模块分析（调用分析引擎）、Level 3 = 智能检测（FSM、时钟域、always 分类）。
-- **可视化图谱**：`rtl_visualize` 工具支持 Mermaid 文本输出（Claude Code 可直接渲染）和交互式 HTML 图谱（vis.js，缩放/拖拽/点击详情）。输出目录 `.verilog_mcp/visualizations/`。
-- **所有数据模型为 dataclass**，位于 `database/models.py`，配合 `to_dict()`/`from_dict()`（JSON 导出）和 `to_row()`/`from_row()`（SQLite 行存储）实现序列化。
+- **双引擎解析**：tree-sitter（语法结构）+ pyslang（语义 elaboration、参数求值、generate 展开）
+- **层次构建**：优先使用 pyslang elaboration 数据（含 generate 展开），tree-sitter 回退
+- **并行解析**：≥10 文件时自动启用 ProcessPoolExecutor
+- **SQLite 持久化 + 内存缓存**，启动时自动加载，支持增量构建（mtime+SHA256 变更检测）
+- **stdlib 传输**，由 MCP 客户端（Claude Desktop、Claude Code 等）调用
+- **三级工具设计**：Level 1 简单查询 → Level 2 跨模块分析 → Level 3 智能检测
+- **可视化**：Mermaid（文本内联）+ vis.js（交互式 HTML）
+- **Filelist 支持**：`.f` 文件的 `+incdir+`、`+define+` 自动传递给 pyslang 预处理器
+- **独立打包**：PyInstaller 构建 CentOS 8.4 兼容可执行文件，自带 glibc parser 缓存
+- **数据模型**：dataclass + `to_dict()`/`from_dict()` (JSON) + `to_row()`/`from_row()` (SQLite)

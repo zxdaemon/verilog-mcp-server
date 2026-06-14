@@ -6,7 +6,7 @@ server:
 index:
   # 索引基础路径，支持 glob 匹配多个目录
   paths:
-    - "/wa/project/openc910"
+    - ""
   # 文件扩展名
   extensions:
     - ".v"

@@ -11,3 +11,18 @@ build/
 .codegraph/
 .verilog_mcp/
 tree-sitter-cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Reports
+reports/
+
+# Project-specific
+.mcp.json
+test_top.v
+uv.lock
+requirements.txt
