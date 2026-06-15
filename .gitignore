@@ -28,3 +28,5 @@ uv.lock
 requirements.txt
 CLAUDE.md
 openspec/
+verilog-mcp-server.spec
+scripts/
