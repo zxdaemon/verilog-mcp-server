@@ -496,3 +496,59 @@ class IndexStore:
         if hasattr(self, "_elab_cache"):
             self._elab_cache.clear()
         logger.info("elaboration 数据已清除")
+
+    # ── Yosys Data Operations ──
+
+    def add_yosys_fsm(self, fsm) -> None:
+        """添加 Yosys FSM 检测结果"""
+        if self._db:
+            self._db.save_yosys_fsm(fsm)
+
+    def get_yosys_fsms(self, module_name: Optional[str] = None) -> list:
+        """查询 Yosys FSM 列表"""
+        if not self._db:
+            return []
+        return self._db.get_yosys_fsms(module_name)
+
+    def add_yosys_comb_loop(self, loop) -> None:
+        """添加 Yosys 组合逻辑环检测结果"""
+        if self._db:
+            self._db.save_yosys_comb_loop(loop)
+
+    def get_yosys_comb_loops(self) -> list:
+        """查询 Yosys 组合逻辑环列表"""
+        if not self._db:
+            return []
+        return self._db.get_yosys_comb_loops()
+
+    def add_yosys_gated_clock(self, clock) -> None:
+        """添加 Yosys 门控时钟检测结果"""
+        if self._db:
+            self._db.save_yosys_gated_clock(clock)
+
+    def get_yosys_gated_clocks(self, module_name: Optional[str] = None) -> list:
+        """查询 Yosys 门控时钟列表"""
+        if not self._db:
+            return []
+        return self._db.get_yosys_gated_clocks(module_name)
+
+    def add_yosys_stat(self, stat) -> None:
+        """添加 Yosys 资源统计"""
+        if self._db:
+            self._db.save_yosys_stat(stat)
+
+    def get_yosys_stats(self, module_name: Optional[str] = None) -> list:
+        """查询 Yosys 资源统计列表"""
+        if not self._db:
+            return []
+        return self._db.get_yosys_stats(module_name)
+
+    def clear_yosys_data(self) -> None:
+        """清除所有 Yosys 数据"""
+        if not self._db:
+            return
+        self._db.clear_yosys_fsms()
+        self._db.clear_yosys_comb_loops()
+        self._db.clear_yosys_gated_clocks()
+        self._db.clear_yosys_stats()
+        logger.info("Yosys 数据已清除")

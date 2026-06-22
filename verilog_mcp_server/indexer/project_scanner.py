@@ -21,6 +21,9 @@ class ProjectScanner:
         self.paths: list[str] = config.get("paths", [])
         self.extensions: list[str] = config.get("extensions", [".v", ".sv", ".svh"])
         self.exclude_dirs: list[str] = config.get("exclude_dirs", [])
+        # 始终排除 EDA 输出目录
+        if ".verilog_mcp" not in self.exclude_dirs:
+            self.exclude_dirs.append(".verilog_mcp")
         self.exclude_files: list[str] = config.get("exclude_files", [])
 
     def scan(self) -> tuple[list[Path], list[str], dict[str, str]]:

@@ -372,3 +372,47 @@ class ElaborationReport(SerializableModel):
     warning_count: int = 0
     diagnostics: list[dict] = field(default_factory=list)
     hierarchy: dict[str, list[str]] = field(default_factory=dict)
+
+
+# ── Yosys 分析数据模型 ──
+
+@dataclass
+class YosysFsmDef(SerializableModel):
+    """Yosys FSM 检测结果"""
+    fsm_name: str = ""
+    module_name: str = ""
+    state_count: int = 0
+    encoding: str = "unknown"          # one-hot / binary / gray / unknown
+    transitions: list[dict] = field(default_factory=list)
+    source_file: str = ""
+
+
+@dataclass
+class YosysCombLoopDef(SerializableModel):
+    """Yosys 组合逻辑环检测结果"""
+    loop_signals: list[str] = field(default_factory=list)
+    source_files: list[str] = field(default_factory=list)
+    severity: str = "warn"             # warn / error
+    message: str = ""
+
+
+@dataclass
+class YosysGatedClockDef(SerializableModel):
+    """Yosys 门控时钟检测结果"""
+    gated_clock_name: str = ""
+    source_clock: str = ""
+    enable_signal: str = ""
+    type: str = ""                      # latch_based / and_gate
+    module_name: str = ""
+
+
+@dataclass
+class YosysStatDef(SerializableModel):
+    """Yosys 资源统计结果"""
+    module_name: str = ""
+    num_cells: int = 0
+    num_wires: int = 0
+    num_lut: int = 0
+    num_ff: int = 0
+    num_memory: int = 0
+    num_dsp: int = 0

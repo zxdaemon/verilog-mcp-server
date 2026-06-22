@@ -17,7 +17,7 @@ from mcp.server.fastmcp import FastMCP
 
 from .database.index_store import IndexStore
 from .indexer.builder import IndexBuilder
-from .tools import register_level1, register_level2, register_level3, register_visualize, register_elab
+from .tools import register_level1, register_level2, register_level3, register_visualize, register_elab, register_yosys
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +140,9 @@ def create_app(config: dict) -> FastMCP:
 
     # 注册 elaboration tools
     register_elab(mcp, index_store)
+
+    # 注册 Yosys tools
+    register_yosys(mcp, index_store)
 
     # 注册管理 tool: 索引构建
     @mcp.tool()
@@ -292,6 +295,11 @@ def main():
         help="启动时强制全量重建索引（忽略已有缓存）"
     )
     parser.add_argument(
+        "--yosys",
+        action="store_true",
+        help="build 阶段启用 Yosys 综合分析（需同时指定 --top）"
+    )
+    parser.add_argument(
         "--cache",
         help="缓存文件路径（覆盖配置）"
     )
@@ -303,6 +311,10 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # ── --yosys 与 --top 互锁 ──
+    if args.yosys and not args.top:
+        parser.error("--yosys 需要同时指定 --top <dut_top_module>")
 
     # 加载配置
     config = load_config(args.config)
@@ -328,7 +340,7 @@ def main():
         logger.info("--rebuild 模式: 强制全量重建索引")
         index_store = app._index_store
         builder = IndexBuilder(config, index_store)
-        builder.build()
+        builder.build(yosys_enabled=args.yosys)
     elif args.build:
         index_store = app._index_store
         builder = IndexBuilder(config, index_store)
@@ -337,7 +349,7 @@ def main():
             builder.build_incremental()
         else:
             logger.info("--build 模式: 无已有索引，执行全量构建")
-            builder.build()
+            builder.build(yosys_enabled=args.yosys)
 
     # 启动 MCP 服务器（使用 stdio 传输）
     logger.info("启动 Verilog MCP 服务器 (stdio)...")

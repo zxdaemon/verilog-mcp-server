@@ -51,3 +51,11 @@ cache:
   auto_load: true
   # 更新时自动保存缓存
   auto_save: true
+
+yosys:
+  # Yosys 综合工具路径（留空则自动查找：捆绑 binary > PATH）
+  yosys_path: ""
+  # Yosys 额外命令行参数
+  extra_args: []
+  # Yosys 输出缓存目录
+  output_dir: ".verilog_mcp/yosys_outputs"

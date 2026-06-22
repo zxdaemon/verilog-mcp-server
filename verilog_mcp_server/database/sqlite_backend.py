@@ -18,6 +18,10 @@ from .models import (
     ResolvedSignalDef,
     MacroExpansionInfo,
     ElaborationReport,
+    YosysFsmDef,
+    YosysCombLoopDef,
+    YosysGatedClockDef,
+    YosysStatDef,
 )
 
 logger = logging.getLogger(__name__)
@@ -121,6 +125,49 @@ CREATE INDEX IF NOT EXISTS idx_elab_inst_path ON elaborated_instances(hierarchic
 CREATE INDEX IF NOT EXISTS idx_elab_inst_module ON elaborated_instances(module_type);
 CREATE INDEX IF NOT EXISTS idx_resolved_sig_module ON resolved_signals(module_name);
 CREATE INDEX IF NOT EXISTS idx_macro_name ON macro_expansions(name);
+
+-- Yosys analysis tables
+CREATE TABLE IF NOT EXISTS yosys_fsm (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fsm_name TEXT NOT NULL,
+    module_name TEXT NOT NULL,
+    state_count INTEGER DEFAULT 0,
+    encoding TEXT DEFAULT 'unknown',
+    transitions_json TEXT,
+    source_file TEXT
+);
+
+CREATE TABLE IF NOT EXISTS yosys_comb_loops (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    loop_signals_json TEXT,
+    source_files_json TEXT,
+    severity TEXT DEFAULT 'warn',
+    message TEXT
+);
+
+CREATE TABLE IF NOT EXISTS yosys_gated_clocks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    gated_clock_name TEXT NOT NULL,
+    source_clock TEXT,
+    enable_signal TEXT,
+    type TEXT,
+    module_name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS yosys_stat (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    module_name TEXT NOT NULL,
+    num_cells INTEGER DEFAULT 0,
+    num_wires INTEGER DEFAULT 0,
+    num_lut INTEGER DEFAULT 0,
+    num_ff INTEGER DEFAULT 0,
+    num_memory INTEGER DEFAULT 0,
+    num_dsp INTEGER DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_yosys_fsm_module ON yosys_fsm(module_name);
+CREATE INDEX IF NOT EXISTS idx_yosys_gated_clock_module ON yosys_gated_clocks(module_name);
+CREATE INDEX IF NOT EXISTS idx_yosys_stat_module ON yosys_stat(module_name);
 """
 
 
@@ -383,6 +430,10 @@ class SQLiteBackend:
         self._conn.execute("DELETE FROM resolved_signals")
         self._conn.execute("DELETE FROM macro_expansions")
         self._conn.execute("DELETE FROM elaboration_reports")
+        self._conn.execute("DELETE FROM yosys_fsm")
+        self._conn.execute("DELETE FROM yosys_comb_loops")
+        self._conn.execute("DELETE FROM yosys_gated_clocks")
+        self._conn.execute("DELETE FROM yosys_stat")
         self._conn.commit()
 
     # ── Elaborated Instance Operations ──
@@ -514,6 +565,111 @@ class SQLiteBackend:
         self._conn.execute("DELETE FROM elaboration_reports")
         self._conn.commit()
 
+    # ── Yosys FSM Operations ──
+
+    def save_yosys_fsm(self, fsm: YosysFsmDef) -> None:
+        self._conn.execute(
+            """INSERT INTO yosys_fsm
+               (fsm_name, module_name, state_count, encoding, transitions_json, source_file)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                fsm.fsm_name, fsm.module_name, fsm.state_count, fsm.encoding,
+                json.dumps(fsm.transitions, ensure_ascii=False),
+                fsm.source_file,
+            ),
+        )
+        self._conn.commit()
+
+    def get_yosys_fsms(self, module_name: Optional[str] = None) -> list[YosysFsmDef]:
+        if module_name:
+            cur = self._conn.execute(
+                "SELECT * FROM yosys_fsm WHERE module_name = ?", (module_name,)
+            )
+        else:
+            cur = self._conn.execute("SELECT * FROM yosys_fsm")
+        return [_row_to_yosys_fsm(_row_to_dict(r)) for r in cur.fetchall()]
+
+    def clear_yosys_fsms(self) -> None:
+        self._conn.execute("DELETE FROM yosys_fsm")
+        self._conn.commit()
+
+    # ── Yosys Comb Loop Operations ──
+
+    def save_yosys_comb_loop(self, loop: YosysCombLoopDef) -> None:
+        self._conn.execute(
+            """INSERT INTO yosys_comb_loops
+               (loop_signals_json, source_files_json, severity, message)
+               VALUES (?, ?, ?, ?)""",
+            (
+                json.dumps(loop.loop_signals, ensure_ascii=False),
+                json.dumps(loop.source_files, ensure_ascii=False),
+                loop.severity, loop.message,
+            ),
+        )
+        self._conn.commit()
+
+    def get_yosys_comb_loops(self) -> list[YosysCombLoopDef]:
+        cur = self._conn.execute("SELECT * FROM yosys_comb_loops")
+        return [_row_to_yosys_comb_loop(_row_to_dict(r)) for r in cur.fetchall()]
+
+    def clear_yosys_comb_loops(self) -> None:
+        self._conn.execute("DELETE FROM yosys_comb_loops")
+        self._conn.commit()
+
+    # ── Yosys Gated Clock Operations ──
+
+    def save_yosys_gated_clock(self, clock: YosysGatedClockDef) -> None:
+        self._conn.execute(
+            """INSERT INTO yosys_gated_clocks
+               (gated_clock_name, source_clock, enable_signal, type, module_name)
+               VALUES (?, ?, ?, ?, ?)""",
+            (
+                clock.gated_clock_name, clock.source_clock, clock.enable_signal,
+                clock.type, clock.module_name,
+            ),
+        )
+        self._conn.commit()
+
+    def get_yosys_gated_clocks(self, module_name: Optional[str] = None) -> list[YosysGatedClockDef]:
+        if module_name:
+            cur = self._conn.execute(
+                "SELECT * FROM yosys_gated_clocks WHERE module_name = ?", (module_name,)
+            )
+        else:
+            cur = self._conn.execute("SELECT * FROM yosys_gated_clocks")
+        return [_row_to_yosys_gated_clock(_row_to_dict(r)) for r in cur.fetchall()]
+
+    def clear_yosys_gated_clocks(self) -> None:
+        self._conn.execute("DELETE FROM yosys_gated_clocks")
+        self._conn.commit()
+
+    # ── Yosys Stat Operations ──
+
+    def save_yosys_stat(self, stat: YosysStatDef) -> None:
+        self._conn.execute(
+            """INSERT INTO yosys_stat
+               (module_name, num_cells, num_wires, num_lut, num_ff, num_memory, num_dsp)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                stat.module_name, stat.num_cells, stat.num_wires,
+                stat.num_lut, stat.num_ff, stat.num_memory, stat.num_dsp,
+            ),
+        )
+        self._conn.commit()
+
+    def get_yosys_stats(self, module_name: Optional[str] = None) -> list[YosysStatDef]:
+        if module_name:
+            cur = self._conn.execute(
+                "SELECT * FROM yosys_stat WHERE module_name = ?", (module_name,)
+            )
+        else:
+            cur = self._conn.execute("SELECT * FROM yosys_stat")
+        return [_row_to_yosys_stat(_row_to_dict(r)) for r in cur.fetchall()]
+
+    def clear_yosys_stats(self) -> None:
+        self._conn.execute("DELETE FROM yosys_stat")
+        self._conn.commit()
+
 
 def _row_to_dict(row: tuple) -> dict:
     """将 SQLite 行转为 dict，自动推断列名"""
@@ -573,4 +729,46 @@ def _row_to_elab_report(row: dict) -> ElaborationReport:
         warning_count=row.get("warning_count", 0) or 0,
         diagnostics=json.loads(row.get("diagnostics_json") or "[]"),
         hierarchy=json.loads(row.get("hierarchy_json") or "{}"),
+    )
+
+
+def _row_to_yosys_fsm(row: dict) -> YosysFsmDef:
+    return YosysFsmDef(
+        fsm_name=row.get("fsm_name", ""),
+        module_name=row.get("module_name", ""),
+        state_count=row.get("state_count", 0) or 0,
+        encoding=row.get("encoding", "unknown"),
+        transitions=json.loads(row.get("transitions_json") or "[]"),
+        source_file=row.get("source_file", ""),
+    )
+
+
+def _row_to_yosys_comb_loop(row: dict) -> YosysCombLoopDef:
+    return YosysCombLoopDef(
+        loop_signals=json.loads(row.get("loop_signals_json") or "[]"),
+        source_files=json.loads(row.get("source_files_json") or "[]"),
+        severity=row.get("severity", "warn"),
+        message=row.get("message", ""),
+    )
+
+
+def _row_to_yosys_gated_clock(row: dict) -> YosysGatedClockDef:
+    return YosysGatedClockDef(
+        gated_clock_name=row.get("gated_clock_name", ""),
+        source_clock=row.get("source_clock", ""),
+        enable_signal=row.get("enable_signal", ""),
+        type=row.get("type", ""),
+        module_name=row.get("module_name", ""),
+    )
+
+
+def _row_to_yosys_stat(row: dict) -> YosysStatDef:
+    return YosysStatDef(
+        module_name=row.get("module_name", ""),
+        num_cells=row.get("num_cells", 0) or 0,
+        num_wires=row.get("num_wires", 0) or 0,
+        num_lut=row.get("num_lut", 0) or 0,
+        num_ff=row.get("num_ff", 0) or 0,
+        num_memory=row.get("num_memory", 0) or 0,
+        num_dsp=row.get("num_dsp", 0) or 0,
     )

@@ -23,6 +23,8 @@ from .function_task_extractor import FunctionTaskExtractor
 from .pyslang_parser import PyslangParser, is_pyslang_available
 from .pyslang_extractor import PyslangExtractor
 from ..database.index_store import IndexStore
+from ..eda.yosys_adapter import YosysAdapter
+from ..eda.cache import EdaCache
 
 logger = logging.getLogger(__name__)
 
@@ -46,11 +48,12 @@ class IndexBuilder:
         self.function_task_extractor = FunctionTaskExtractor()
         self.pyslang_extractor = PyslangExtractor()
 
-    def build(self, incremental: bool = False) -> IndexStore:
+    def build(self, incremental: bool = False, yosys_enabled: bool = False) -> IndexStore:
         """构建索引
 
         Args:
             incremental: True 时自动检测变更文件并增量构建，False 时全量重建
+            yosys_enabled: True 时在构建完成后运行 Yosys 综合分析
         """
         if incremental:
             return self.build_incremental()
@@ -122,6 +125,10 @@ class IndexBuilder:
         # ── pyslang elaboration 步骤 ──
         self._run_pyslang_elaboration(file_paths=files, filelist_incdirs=filelist_incdirs, filelist_defines=filelist_defines)
 
+        # ── Yosys 综合分析步骤 ──
+        if yosys_enabled:
+            self._run_yosys_analysis(file_paths=files)
+
         return self.index_store
 
     def _parse_files(self, files, max_workers=None) -> list[tuple[str, object, str]]:
@@ -131,7 +138,9 @@ class IndexBuilder:
         PARALLEL_THRESHOLD = 10
         file_strs = [str(f) for f in files]
 
-        if len(file_strs) < PARALLEL_THRESHOLD:
+        # tree-sitter (PyO3/Rust) 的 Parser/Tree 对象有线程亲和性限制，
+        # 不可跨线程使用。这里始终串行解析。
+        if True or len(file_strs) < PARALLEL_THRESHOLD:
             # 串行解析
             results = []
             for fp in file_strs:
@@ -140,8 +149,8 @@ class IndexBuilder:
                     results.append(r)
             return results
 
-        # 并行解析
-        from concurrent.futures import ProcessPoolExecutor, as_completed
+        # 以下并行代码保留但永不执行（因 tree-sitter 线程限制）
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         import multiprocessing
 
         if max_workers is None:
@@ -149,7 +158,7 @@ class IndexBuilder:
 
         logger.info(f"并行解析 {len(file_strs)} 文件 (workers={max_workers})")
         results = []
-        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {executor.submit(parse_single_file, fp): fp for fp in file_strs}
             for future in as_completed(futures):
                 r = future.result()
@@ -438,4 +447,57 @@ class IndexBuilder:
             count += 1
 
         return count
+
+    def _run_yosys_analysis(self, file_paths: list = None) -> None:
+        """运行 Yosys 综合分析并提取数据"""
+        yosys_config = self.config.get("yosys", {})
+        top_module = self.config.get("pyslang", {}).get("top_module", "")
+        if not top_module:
+            logger.warning("Yosys 分析需要指定 --top，已跳过")
+            return
+        if file_paths is None:
+            file_paths, _, _ = self.scanner.scan()
+        file_strs = [str(fp) for fp in file_paths]
+        if not file_strs:
+            return
+
+        adapter = YosysAdapter(config=yosys_config)
+        if not adapter.is_available():
+            logger.warning("Yosys 未安装或不可用，跳过综合分析")
+            return
+
+        cache_dir = yosys_config.get("output_dir", ".verilog_mcp/yosys_outputs")
+        cache = EdaCache(cache_dir)
+        cache_key = cache.check(file_strs, top_module)
+        if cache_key:
+            try:
+                self._import_yosys_results(cache.load(cache_key))
+                logger.info("Yosys 分析: 缓存命中")
+                return
+            except Exception as e:
+                logger.warning(f"Yosys 缓存加载失败: {e}")
+
+        logger.info(f"运行 Yosys 综合分析 (top={top_module})...")
+        if not adapter.run(file_strs, top_module, cache_dir):
+            logger.warning("Yosys 运行失败")
+            return
+        try:
+            results = adapter.parse_output(cache_dir)
+            self._import_yosys_results(results)
+            cache.save(cache.compute_files_hash(list(file_strs) + [f"__top__:{top_module}"]), results)
+            logger.info("Yosys 综合分析完成")
+        except Exception as e:
+            logger.warning(f"Yosys 解析异常: {e}")
+
+    def _import_yosys_results(self, results: dict) -> None:
+        """将 Yosys 解析结果导入 index_store"""
+        from ..database.models import YosysFsmDef, YosysCombLoopDef, YosysGatedClockDef, YosysStatDef
+        for fsm_data in results.get("fsms", []):
+            self.index_store.add_yosys_fsm(YosysFsmDef.from_dict(fsm_data))
+        for loop_data in results.get("comb_loops", []):
+            self.index_store.add_yosys_comb_loop(YosysCombLoopDef.from_dict(loop_data))
+        for clock_data in results.get("gated_clocks", []):
+            self.index_store.add_yosys_gated_clock(YosysGatedClockDef.from_dict(clock_data))
+        for stat_data in results.get("stats", []):
+            self.index_store.add_yosys_stat(YosysStatDef.from_dict(stat_data))
 
