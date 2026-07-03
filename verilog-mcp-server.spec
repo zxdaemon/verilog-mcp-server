@@ -1,6 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
-import os
 
 datas = [
     ('verilog_mcp_server/config.yaml', 'verilog_mcp_server'),
@@ -8,16 +7,7 @@ datas = [
     ('tree-sitter-cache', 'tree-sitter-cache'),
 ]
 
-# 如果 yosys 二进制存在，打包进去
-_YOSYS_BIN = None
-for _p in ['verilog_mcp_server/eda/bin/yosys', 'yosys']:
-    if os.path.isfile(_p) and os.access(_p, os.X_OK):
-        _YOSYS_BIN = _p
-        break
-
 binaries = []
-if _YOSYS_BIN:
-    binaries.append((_YOSYS_BIN, 'eda/bin'))
 
 hiddenimports = [
     'verilog_mcp_server',
@@ -75,6 +65,12 @@ tmp_ret = collect_all('tree_sitter_language_pack')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('pyslang')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+# collect_all for pyosys (libyosys.so + yosys-abc + share/)
+try:
+    tmp_ret = collect_all('pyosys')
+    datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+except Exception:
+    pass  # pyosys 未安装时跳过
 
 
 a = Analysis(
@@ -85,7 +81,7 @@ a = Analysis(
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=['scripts/tree_sitter_cache_hook.py', 'scripts/yosys_runtime_hook.py'],
+    runtime_hooks=['scripts/tree_sitter_cache_hook.py'],
     excludes=[],
     noarchive=False,
     optimize=0,

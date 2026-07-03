@@ -1,7 +1,7 @@
 """
 Tests for YosysAdapter.
 
-Uses mock Yosys output data (no real Yosys needed).
+Uses mock Yosys output data (no real Yosys/pyosys needed).
 """
 
 from __future__ import annotations
@@ -96,38 +96,56 @@ Found logic loop in module bad_latch:
 class TestYosysAdapter:
     """Tests for YosysAdapter."""
 
-    def test_check_available_not_installed(self):
-        """Returns False when yosys is not in PATH."""
-        adapter = YosysAdapter({"yosys_path": "/nonexistent/yosys"})
-        assert adapter.check_available() is False
-
-    def test_check_available_not_found(self):
-        """Returns False when command not found."""
-        with patch("subprocess.run", side_effect=FileNotFoundError):
-            adapter = YosysAdapter()
+    def test_check_available_pyosys_not_installed(self):
+        """Returns False when pyosys cannot be imported."""
+        adapter = YosysAdapter()
+        # Force fresh import attempt
+        adapter._available = None
+        adapter._ys = None
+        with patch.dict("sys.modules", {"pyosys": None, "pyosys.libyosys": None}):
             assert adapter.check_available() is False
+
+    def test_check_available_pyosys_installed(self):
+        """Returns True when pyosys can be imported."""
+        adapter = YosysAdapter()
+        adapter._available = None
+        adapter._ys = None
+        mock_pyosys = MagicMock()
+        mock_ys = MagicMock()
+        mock_pyosys.libyosys = mock_ys
+        with patch.dict("sys.modules", {"pyosys": mock_pyosys, "pyosys.libyosys": mock_ys}):
+            assert adapter.check_available() is True
+            assert adapter._ys is mock_ys
 
     def test_run_empty_files(self):
         """run() returns False when no files provided."""
         adapter = YosysAdapter()
-        # Patch is_available to avoid real check
         with patch.object(adapter, "is_available", return_value=True):
             result = adapter.run([], "top", "/tmp/out")
             assert result is False
 
     def test_run_not_available(self):
-        """run() returns False when yosys is unavailable."""
+        """run() returns False when pyosys is unavailable."""
         adapter = YosysAdapter()
         with patch.object(adapter, "is_available", return_value=False):
             result = adapter.run(["test.v"], "top", "/tmp/out")
             assert result is False
 
+    def test_run_pyosys_not_importable(self):
+        """run() returns False when pyosys import fails at runtime."""
+        adapter = YosysAdapter()
+        adapter._available = True  # pretend available
+        adapter._ys = None
+        adapter._available = None  # force re-import
+        with patch.object(adapter, "is_available", return_value=True):
+            with patch.dict("sys.modules", {"pyosys": None, "pyosys.libyosys": None}):
+                result = adapter.run(["test.v"], "top", "/tmp/out")
+                assert result is False
+
     def test_output_files_exist(self):
         """_output_files_exist checks for correct files."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Files don't exist yet
             assert YosysAdapter._output_files_exist(tmpdir) is False
-            # Create files
             Path(tmpdir, "yosys_netlist.json").touch()
             Path(tmpdir, "stat.json").touch()
             assert YosysAdapter._output_files_exist(tmpdir) is True
@@ -170,22 +188,6 @@ class TestYosysAdapter:
         adapter = YosysAdapter()
         result = adapter._infer_encoding({"parameters": {}}, 4)
         assert result == "unknown"
-
-    def test_parse_comb_loops_empty(self):
-        """_parse_comb_loops returns empty for clean output."""
-        adapter = YosysAdapter()
-        loops = adapter._parse_comb_loops("No loops found.")
-        assert loops == []
-
-    def test_parse_comb_loops(self):
-        """_parse_comb_loops extracts loops from check output."""
-        adapter = YosysAdapter()
-        loops = adapter._parse_comb_loops(MOCK_CHECK_OUTPUT)
-        assert len(loops) == 2
-        # First loop should have signals from the ring_osc module
-        assert "a" in loops[0]["loop_signals"]
-        assert "b" in loops[0]["loop_signals"]
-        assert all(loop["severity"] == "warn" for loop in loops)
 
     def test_parse_gated_clocks(self):
         """_parse_gated_clocks detects latch-based gated clocks."""
@@ -236,7 +238,6 @@ class TestYosysAdapter:
         adapter = YosysAdapter()
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Write mock Yosys output files
             netlist_path = os.path.join(tmpdir, "yosys_netlist.json")
             stat_path = os.path.join(tmpdir, "stat.json")
 
@@ -263,28 +264,34 @@ class TestYosysAdapter:
             assert results["fsms"] == []
             assert results["stats"] == []
 
-    def test_tcl_template_contains_required_passes(self):
-        """Yosys Tcl template includes proc, fsm_detect, check, clk2fflogic, stat, write_json."""
-        from verilog_mcp_server.eda.yosys_adapter import _YOSYS_TCL_TEMPLATE
+    def test_yosys_passes_contain_required_passes(self):
+        """_YOSYS_PASSES includes all required yosys passes."""
+        from verilog_mcp_server.eda.yosys_adapter import _YOSYS_PASSES
 
-        template_str = _YOSYS_TCL_TEMPLATE.template
+        pass_names = [p[0].split()[0] for p in _YOSYS_PASSES]
         required = ["read_verilog", "hierarchy", "proc", "fsm_detect",
                     "check", "clk2fflogic", "stat", "write_json"]
         for r in required:
-            assert r in template_str, f"Missing pass: {r}"
+            assert r in pass_names, f"Missing pass: {r}"
 
-    def test_bundled_yosys_path_preferred(self, monkeypatch):
-        """When YOSYS_BUNDLED_PATH is set, it takes priority over config."""
-        monkeypatch.setenv("YOSYS_BUNDLED_PATH", "/bundle/yosys")
-        adapter = YosysAdapter({"yosys_path": "/usr/bin/yosys"})
-        assert adapter._yosys_cmd == "/bundle/yosys"
+    def test_try_import_caches_result(self):
+        """_try_import caches the import result."""
+        adapter = YosysAdapter()
+        adapter._available = None
+        adapter._ys = None
+        mock_pyosys = MagicMock()
+        mock_ys = MagicMock()
+        mock_pyosys.libyosys = mock_ys
+        with patch.dict("sys.modules", {"pyosys": mock_pyosys, "pyosys.libyosys": mock_ys}):
+            result1 = adapter._try_import()
+            assert result1 is True
+            # Second call should use cache
+            result2 = adapter._try_import()
+            assert result2 is True
 
-    def test_config_yosys_path_fallback(self):
-        """When no env var, config path is used."""
-        adapter = YosysAdapter({"yosys_path": "/custom/yosys"})
-        assert adapter._yosys_cmd == "/custom/yosys"
-
-    def test_default_yosys_path(self):
-        """When nothing configured, defaults to 'yosys' (PATH lookup)."""
-        adapter = YosysAdapter({})
-        assert adapter._yosys_cmd == "yosys"
+    def test_init_no_external_config(self):
+        """__init__ does not read yosys_path or YOSYS_BUNDLED_PATH."""
+        adapter = YosysAdapter({"yosys_path": "/ignored"})
+        # Should not have _yosys_cmd attribute (old implementation)
+        assert not hasattr(adapter, "_yosys_cmd")
+        assert not hasattr(adapter, "_extra_args")

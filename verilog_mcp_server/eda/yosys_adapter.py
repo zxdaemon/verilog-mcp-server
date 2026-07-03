@@ -1,11 +1,11 @@
 """
-Yosys 适配器 — 通过 CLI 调用 Yosys 综合工具
+Yosys 适配器 — 通过 pyosys Python API 调用 Yosys 综合工具
 
 Yosys 流水线（无需工艺库）：
   read_verilog -sv <files> → hierarchy -top <top> → proc →
   fsm_detect → fsm_export → check → clk2fflogic → stat -json → write_json
 
-通过 CLI 调用，零 Python 依赖。
+通过 pyosys (libyosys) 在进程内调用，无需外部二进制。
 """
 
 from __future__ import annotations
@@ -15,67 +15,57 @@ import logging
 import os
 import re
 import shlex
-import subprocess
-import tempfile
-from pathlib import Path
-from string import Template
 from typing import Optional
 
 from .base_adapter import BaseEdaAdapter
 
 logger = logging.getLogger(__name__)
 
-# ── Yosys Tcl 脚本模板 ──
-
-_YOSYS_TCL_TEMPLATE = Template("""\
-# Yosys 分析脚本 (auto-generated)
-read_verilog -sv ${files}
-hierarchy -top ${top}
-proc
-fsm_detect
-fsm_export -o ${output_dir}/fsm.kiss2
-check -noinit
-clk2fflogic
-stat -json ${output_dir}/stat.json
-write_json ${output_dir}/yosys_netlist.json
-""")
-
-# ── 默认 Yosys 可执行文件名 ──
-DEFAULT_YOSYS_CMD = "yosys"
+# ── Yosys pass 命令列表 ──
+# 每个元素是 (pass_template, needs_output_dir) 的元组
+# pass_template 中 {files}, {top}, {output_dir} 会被替换
+_YOSYS_PASSES: list[tuple[str, bool]] = [
+    ("read_verilog -sv {files}", False),
+    ("hierarchy -top {top}", False),
+    ("proc", False),
+    ("fsm_detect", False),
+    ("fsm_export -o {output_dir}/fsm.kiss2", True),
+    ("check -noinit", False),
+    ("clk2fflogic", False),
+    ("stat -json {output_dir}/stat.json", True),
+    ("write_json {output_dir}/yosys_netlist.json", True),
+]
 
 
 class YosysAdapter(BaseEdaAdapter):
     """Yosys 综合工具适配器
 
-    通过生成 Tcl 脚本 + CLI 调用的方式运行 Yosys，
+    通过 pyosys Python API (libyosys) 在进程内运行 Yosys pass，
     解析输出 JSON 提取 FSM、组合环、门控时钟、资源统计。
     """
 
     def __init__(self, config: Optional[dict] = None):
         super().__init__(config)
-        # 优先级：环境变量（PyInstaller bundled） > config 指定 > PATH 查找
-        bundled = os.environ.get("YOSYS_BUNDLED_PATH", "")
-        configured = self.config.get("yosys_path", "")
-        self._yosys_cmd = bundled or configured or DEFAULT_YOSYS_CMD
-        self._extra_args = self.config.get("extra_args", [])
+        self._available: Optional[bool] = None
+        self._ys = None  # pyosys libyosys 模块引用
+
+    def _try_import(self) -> bool:
+        """尝试导入 pyosys，缓存结果"""
+        if self._available is not None:
+            return self._available
+        try:
+            import pyosys.libyosys as ys
+            self._ys = ys
+            self._available = True
+            logger.debug("pyosys 可用")
+        except ImportError as e:
+            self._available = False
+            logger.debug(f"pyosys 不可用: {e}")
+        return self._available
 
     def check_available(self) -> bool:
-        """检测 yosys 命令是否在 PATH 中可用"""
-        try:
-            result = subprocess.run(
-                [self._yosys_cmd, "-V"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-                env=os.environ.copy(),
-            )
-            if result.returncode == 0 and "Yosys" in (result.stdout + result.stderr):
-                logger.debug(f"Yosys 可用: {self._yosys_cmd}")
-                return True
-            return False
-        except (FileNotFoundError, subprocess.TimeoutExpired, PermissionError) as e:
-            logger.debug(f"Yosys 不可用: {e}")
-            return False
+        """检测 pyosys 是否可导入"""
+        return self._try_import()
 
     def run(self, file_paths: list[str], top_module: str, output_dir: str) -> bool:
         """运行 Yosys 综合分析
@@ -90,75 +80,60 @@ class YosysAdapter(BaseEdaAdapter):
         """
         # 检查可用性
         if not self.is_available():
-            logger.warning("Yosys 不可用，跳过")
+            logger.warning("Yosys (pyosys) 不可用，跳过")
             return False
 
         if not file_paths:
             logger.warning("无 RTL 文件，跳过 Yosys")
             return False
 
+        # 确保 pyosys 已导入
+        if not self._try_import():
+            return False
+
+        ys = self._ys
+
         # 创建输出目录
         os.makedirs(output_dir, exist_ok=True)
 
-        # 生成 Tcl 脚本
+        # 准备 pass 参数
         files_str = " ".join(shlex.quote(f) for f in file_paths)
-        tcl_script = _YOSYS_TCL_TEMPLATE.substitute(
-            files=files_str,
-            top=shlex.quote(top_module),
-            output_dir=shlex.quote(os.path.abspath(output_dir)),
-        )
+        abs_output_dir = os.path.abspath(output_dir)
 
-        # 写入临时 Tcl 脚本
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".tcl", delete=False, encoding="utf-8"
-        ) as f:
-            f.write(tcl_script)
-            tcl_path = f.name
+        # 创建 Design 对象
+        design = ys.Design()
 
-        try:
-            cmd = [self._yosys_cmd, "-s", tcl_path] + self._extra_args
-            logger.info(f"运行 Yosys: {' '.join(cmd)}")
-            logger.debug(f"Tcl 脚本: {tcl_path}")
-
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=600,  # 10 分钟超时
-                env=os.environ.copy(),
-                cwd=output_dir,
-            )
-
-            if result.returncode != 0:
-                # Yosys 会返回非零，但可能仍有部分输出可用
-                stderr_tail = result.stderr[-500:] if result.stderr else ""
-                logger.warning(
-                    f"Yosys 返回非零退出码 {result.returncode}: {stderr_tail}"
+        # 逐条执行 pass
+        for pass_tmpl, needs_output_dir in _YOSYS_PASSES:
+            if needs_output_dir:
+                cmd = pass_tmpl.format(
+                    files=files_str,
+                    top=shlex.quote(top_module),
+                    output_dir=shlex.quote(abs_output_dir),
                 )
-                # 检查是否有部分输出文件
-                if not self._output_files_exist(output_dir):
-                    return False
+            else:
+                cmd = pass_tmpl.format(
+                    files=files_str,
+                    top=shlex.quote(top_module),
+                    output_dir="",
+                )
 
-            # 检查输出文件
-            if not self._output_files_exist(output_dir):
-                logger.warning("Yosys 运行完成但未产生预期输出文件")
-                return False
-
-            logger.info(f"Yosys 运行成功，输出: {output_dir}")
-            return True
-
-        except subprocess.TimeoutExpired:
-            logger.warning("Yosys 运行超时（600s）")
-            return False
-        except Exception as e:
-            logger.warning(f"Yosys 运行异常: {e}")
-            return False
-        finally:
-            # 清理临时 Tcl 脚本
             try:
-                os.unlink(tcl_path)
-            except OSError:
-                pass
+                logger.debug(f"执行 yosys pass: {cmd}")
+                ys.run_pass(cmd, design)
+            except RuntimeError as e:
+                # yosys pass 失败（如 check 发现问题），记录但继续
+                logger.warning(f"Yosys pass 失败 ({cmd.split()[0]}): {e}")
+            except Exception as e:
+                logger.warning(f"Yosys pass 异常 ({cmd.split()[0]}): {e}")
+
+        # 检查输出文件
+        if not self._output_files_exist(abs_output_dir):
+            logger.warning("Yosys 运行完成但未产生预期输出文件")
+            return False
+
+        logger.info(f"Yosys 运行成功，输出: {abs_output_dir}")
+        return True
 
     def parse_output(self, output_dir: str) -> dict:
         """解析 Yosys 输出目录中的所有结果
@@ -193,11 +168,6 @@ class YosysAdapter(BaseEdaAdapter):
                 results["gated_clocks"] = self._parse_gated_clocks(design)
             except (json.JSONDecodeError, OSError) as e:
                 logger.warning(f"Yosys JSON 网表解析失败: {e}")
-
-        # 解析 check 输出（从 stdout/stderr 日志，如果有的话）
-        # check 输出通过 subprocess 的 stderr 传递，这里从文件解析
-        # 实际上 Yosys check 结果在 stdout/stderr 中，需要从 run() 阶段捕获
-        # 这里作为备用：检查是否有 check 日志文件
 
         # 解析 stat JSON
         if os.path.exists(stat_json_path):
@@ -256,13 +226,13 @@ class YosysAdapter(BaseEdaAdapter):
             state_count = 0
             for key in ("\\STATE_COUNT", "STATE_COUNT", "NUM_STATES"):
                 if key in parameters:
-                    state_count = int(parameters[key], 0)  # int with base 0 supports hex/bin/dec
+                    state_count = int(parameters[key], 0)
                     break
 
             # 编码方式推断
             encoding = self._infer_encoding(cell_data, state_count)
 
-            # 状态跳转
+            # 状态跳转（从 JSON 网表启发式提取）
             transitions = self._extract_transitions(cell_data)
 
             return {
@@ -308,7 +278,7 @@ class YosysAdapter(BaseEdaAdapter):
         for conn_name, conn_data in connections.items():
             if "state" in conn_name.lower() or "rst" in conn_name.lower():
                 if isinstance(conn_data, list) and len(conn_data) > 1:
-                    state_bits = len(conn_data) - 1  # approximate
+                    state_bits = len(conn_data) - 1
 
         if state_bits > 0:
             if state_bits == state_count:
@@ -318,46 +288,31 @@ class YosysAdapter(BaseEdaAdapter):
             elif state_bits > state_count:
                 return "one-hot"
 
-        # 默认
         return "unknown"
 
     def _extract_transitions(self, cell_data: dict) -> list[dict]:
-        """提取 FSM 状态跳转关系
+        """从 JSON 网表启发式提取 FSM 状态跳转关系
+
+        从 connections 中提取与状态转移相关的信号。
 
         Args:
             cell_data: cell 数据
 
         Returns:
-            跳转列表 [{"from": "IDLE", "to": "START", "condition": "..."}, ...]
+            跳转列表 [{"from": "N/A", "to": "N/A", "condition": "..."}, ...]
         """
         transitions = []
-        # Yosys FSM cell 的 connections 包含状态和跳转
-        # 具体的键名取决于 Yosys 版本，进行启发式提取
         connections = cell_data.get("connections", {})
-        parameters = cell_data.get("parameters", {})
 
-        # 尝试从 STATE_TABLE 参数提取
-        for key in ("\\STATE_TABLE", "STATE_TABLE"):
-            table = parameters.get(key, "")
-            if table:
-                # state_table 格式复杂，做简单标记
+        # 从 connections 提取 CTRL_IN / ARST 等信号
+        for conn_name in connections:
+            conn_lower = conn_name.replace("\\", "").lower()
+            if any(kw in conn_lower for kw in ("ctrl", "state", "trans", "next")):
                 transitions.append({
                     "from": "N/A",
                     "to": "N/A",
-                    "condition": f"state_table: {str(table)[:100]}",
+                    "condition": f"signal: {conn_name}",
                 })
-                break
-
-        if not transitions:
-            # 从 connections 提取 CTRL_IN / ARST 等信号
-            for conn_name in connections:
-                conn_lower = conn_name.replace("\\", "").lower()
-                if any(kw in conn_lower for kw in ("ctrl", "state", "trans", "next")):
-                    transitions.append({
-                        "from": "N/A",
-                        "to": "N/A",
-                        "condition": f"signal: {conn_name}",
-                    })
 
         if not transitions:
             transitions.append({
@@ -367,47 +322,6 @@ class YosysAdapter(BaseEdaAdapter):
             })
 
         return transitions
-
-    def _parse_comb_loops(self, check_output: str) -> list[dict]:
-        """解析 Yosys `check` pass 的输出，提取组合逻辑环告警
-
-        Args:
-            check_output: check pass 的 stderr/stdout 文本
-
-        Returns:
-            组合环列表
-        """
-        loops = []
-        if not check_output or "logic loop" not in check_output.lower():
-            return loops
-
-        # Yosys check 输出格式类似:
-        # Found logic loop in module <name>:
-        #   cell $abc ...
-        #   wire ...
-        lines = check_output.splitlines()
-        current_loop: Optional[dict] = None
-
-        for line in lines:
-            if "logic loop" in line.lower():
-                if current_loop and current_loop.get("loop_signals"):
-                    loops.append(current_loop)
-                current_loop = {
-                    "loop_signals": [],
-                    "source_files": [],
-                    "severity": "warn",
-                    "message": line.strip(),
-                }
-            elif current_loop is not None:
-                # 提取信号名
-                match = re.search(r"(?:wire|cell)\s+(\S+)", line)
-                if match:
-                    current_loop["loop_signals"].append(match.group(1))
-
-        if current_loop and current_loop.get("loop_signals"):
-            loops.append(current_loop)
-
-        return loops
 
     def _parse_gated_clocks(self, design: dict) -> list[dict]:
         """从 Yosys `clk2fflogic` 处理后的网表中识别门控时钟信号
@@ -462,13 +376,11 @@ class YosysAdapter(BaseEdaAdapter):
             门控时钟信息字典或 None
         """
         connections = cell_data.get("connections", {})
-        attributes = cell_data.get("attributes", {})
 
         # 提取连接的信号
         connected_signals = []
         for conn_name, conn_data in connections.items():
             if isinstance(conn_data, list) and len(conn_data) > 0:
-                # 连接指向的 wire
                 for bit in conn_data:
                     if isinstance(bit, str) and bit:
                         connected_signals.append(bit)
@@ -483,7 +395,6 @@ class YosysAdapter(BaseEdaAdapter):
             elif "clk" in sig_lower or "clock" in sig_lower:
                 source_clock = sig
 
-        # 如果连接数 >= 2，第一个可能是时钟，第二个可能是使能
         if not source_clock and len(connected_signals) >= 1:
             source_clock = connected_signals[0]
         if not enable_signal and len(connected_signals) >= 2:
@@ -511,18 +422,15 @@ class YosysAdapter(BaseEdaAdapter):
         """
         stats = []
 
-        # stat -json 的顶层结构
         design = stat_data.get("design", stat_data)
         modules = stat_data.get("modules", {})
 
-        # 如果 modules 为空，解析全局统计
         if not modules:
             stat_entry = self._extract_stat_entry(design, "top")
             if stat_entry:
                 stats.append(stat_entry)
             return stats
 
-        # 逐个模块统计
         for mod_name, mod_data in modules.items():
             stat_entry = self._extract_stat_entry(mod_data, mod_name)
             if stat_entry:
@@ -543,10 +451,8 @@ class YosysAdapter(BaseEdaAdapter):
         num_cells = data.get("num_cells", 0)
         num_wires = data.get("num_wires", 0)
 
-        # 单元类型计数
         cells_by_type = data.get("num_cells_by_type", {})
 
-        # 估算 LUT/FF/Memory/DSP
         num_lut = 0
         num_ff = 0
         num_memory = 0
@@ -563,7 +469,6 @@ class YosysAdapter(BaseEdaAdapter):
             elif any(kw in ct for kw in ("dsp", "$dsp", "mul", "mac")):
                 num_dsp += count
 
-        # 如果没有分类计数，返回基础统计
         return {
             "module_name": module_name,
             "num_cells": num_cells,

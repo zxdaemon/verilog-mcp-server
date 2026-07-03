@@ -53,9 +53,7 @@ cache:
   auto_save: true
 
 yosys:
-  # Yosys 综合工具路径（留空则自动查找：捆绑 binary > PATH）
-  yosys_path: ""
-  # Yosys 额外命令行参数
-  extra_args: []
+  # yosys_path 已废弃：yosys 现通过 pyosys (libyosys) 内嵌调用，无需指定外部路径
+  # yosys_path: ""
   # Yosys 输出缓存目录
   output_dir: ".verilog_mcp/yosys_outputs"
