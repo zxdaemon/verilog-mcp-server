@@ -195,6 +195,29 @@ class FunctionDef(SerializableModel):
     file_path: str = ""
     line: int = 0
 
+    def to_row(self) -> dict:
+        return {
+            "name": self.name,
+            "kind": self.kind,
+            "return_type": self.return_type,
+            "ports_json": _json.dumps([p.to_dict() for p in self.ports], ensure_ascii=False),
+            "body": self.body,
+            "file_path": self.file_path,
+            "line": self.line,
+        }
+
+    @classmethod
+    def from_row(cls, row: dict) -> "FunctionDef":
+        return cls(
+            name=row["name"],
+            kind=row.get("kind", "function"),
+            return_type=row.get("return_type", ""),
+            ports=[PortDef.from_dict(d) for d in _json.loads(row.get("ports_json") or "[]")],
+            body=row.get("body", ""),
+            file_path=row.get("file_path", ""),
+            line=row.get("line", 0) or 0,
+        )
+
 
 @dataclass
 class MacroDef(SerializableModel):
@@ -223,6 +246,23 @@ class PackageDef(SerializableModel):
     file_path: str = ""
     typedefs: list[TypeDef] = field(default_factory=list)
     parameters: list[ParamDef] = field(default_factory=list)
+
+    def to_row(self) -> dict:
+        return {
+            "name": self.name,
+            "file_path": self.file_path,
+            "typedefs_json": _json.dumps([t.to_dict() for t in self.typedefs], ensure_ascii=False),
+            "parameters_json": _json.dumps([p.to_dict() for p in self.parameters], ensure_ascii=False),
+        }
+
+    @classmethod
+    def from_row(cls, row: dict) -> "PackageDef":
+        return cls(
+            name=row["name"],
+            file_path=row.get("file_path", ""),
+            typedefs=[TypeDef.from_dict(d) for d in _json.loads(row.get("typedefs_json") or "[]")],
+            parameters=[ParamDef.from_dict(d) for d in _json.loads(row.get("parameters_json") or "[]")],
+        )
 
 
 @dataclass

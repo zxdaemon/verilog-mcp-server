@@ -47,6 +47,21 @@ def register_tools(mcp: "FastMCP", index_store: "IndexStore"):
         except DomainError as e:
             return f"❌ {e}"
 
+        if not result.fsms:
+            return f"ℹ️ 模块 `{module_name}` 未检测到有限状态机"
+
+        lines = [
+            f"# FSM 检测结果: {module_name}",
+            f"",
+            f"检测到 {result.fsm_count} 个有限状态机",
+            f"",
+        ]
+
+        for fsm in result.fsms:
+            lines.append(fsm.to_text())
+            lines.append("")
+
+        return "\n".join(lines)
 
     @mcp.tool()
     def rtl_clock_domains(module_name: str) -> str:
@@ -57,8 +72,15 @@ def register_tools(mcp: "FastMCP", index_store: "IndexStore"):
         """
         try:
             result = clock_analyzer.analyze(module_name)
+        except ValueError as e:
+            return f"❌ {e}"
         except DomainError as e:
             return f"❌ {e}"
+
+        return ClockAnalyzer.format_clock_analysis(
+            result,
+            title=f"时钟域分析: {module_name}",
+        )
 
     @mcp.tool()
     def rtl_reset_domains(module_name: str) -> str:
@@ -69,8 +91,36 @@ def register_tools(mcp: "FastMCP", index_store: "IndexStore"):
         """
         try:
             result = clock_analyzer.analyze(module_name)
+        except ValueError as e:
+            return f"❌ {e}"
         except DomainError as e:
             return f"❌ {e}"
+
+        lines = [
+            f"# 复位域分析: {module_name}",
+            f"",
+        ]
+
+        if not result.async_resets and not result.sync_resets:
+            lines.append("ℹ️ 未检测到复位信号")
+            return "\n".join(lines)
+
+        if result.async_resets:
+            lines.append(f"## 异步复位 ({len(result.async_resets)} 个)")
+            for rst in result.async_resets:
+                polarity_str = "高有效" if rst.polarity == "high" else "低有效"
+                domain_str = f" (关联时钟: {rst.domain_of_reset})" if rst.domain_of_reset else ""
+                lines.append(f"- `{rst.signal}` ({polarity_str}){domain_str}")
+            lines.append("")
+
+        if result.sync_resets:
+            lines.append(f"## 同步复位 ({len(result.sync_resets)} 个)")
+            for rst in result.sync_resets:
+                polarity_str = "高有效" if rst.polarity == "high" else "低有效"
+                lines.append(f"- `{rst.signal}` ({polarity_str})")
+            lines.append("")
+
+        return "\n".join(lines)
 
     @mcp.tool()
     def rtl_always_classify(module_name: str) -> str:
@@ -81,8 +131,15 @@ def register_tools(mcp: "FastMCP", index_store: "IndexStore"):
         """
         try:
             result = always_classifier.classify(module_name)
+        except ValueError as e:
+            return f"❌ {e}"
         except DomainError as e:
             return f"❌ {e}"
+
+        return AlwaysClassifier.format_classification(
+            result,
+            title=f"Always 块分类: {module_name}",
+        )
 
     @mcp.tool()
     def rtl_cross_domain_signals(module_name: str) -> str:
@@ -93,45 +150,49 @@ def register_tools(mcp: "FastMCP", index_store: "IndexStore"):
         """
         try:
             result = clock_analyzer.analyze(module_name)
-
-            domains = result.clock_domains
-            if len(domains) < 2:
-                return f"ℹ️ 模块 `{module_name}` 只有一个时钟域，无需跨时钟域检查"
-
-            sig_domains: dict[str, list[str]] = defaultdict(list)
-            for d in domains:
-                for sig in d.signals:
-                    sig_domains[sig].append(d.clock_name)
-
-            cross_signals = {s: ds for s, ds in sig_domains.items() if len(ds) > 1}
-
-            lines = [
-                f"# 跨时钟域信号: {module_name}",
-                f"",
-            ]
-            if cross_signals:
-                lines.append(f"**发现 {len(cross_signals)} 个跨时钟域信号**")
-                lines.append(f"")
-                lines.append(f"| 信号 | 所属时钟域 | 风险 | 同步器 |")
-                lines.append(f"|------|-----------|------|--------|")
-                for cd in analysis.cross_domain_signals:
-                    sig = cd["signal"]
-                    clks = cd["clock_domains"]
-                    risk = cd.get("risk", "高")
-                    sync = cd.get("synchronizer", "")
-                    sync_str = {"two_flop": "双触发器", "handshake": "握手"}.get(sync, "无")
-                    risk_icon = "✅" if risk == "低" else "⚠️"
-                    lines.append(f"| `{sig}` | {', '.join(clks)} | {risk_icon} {risk} | {sync_str} |")
-                lines.append(f"")
-                unsynced = [cd for cd in analysis.cross_domain_signals if not cd.get("synchronizer")]
-                if unsynced:
-                    lines.append(f"> ⚠️ {len(unsynced)} 个信号未检测到同步器，建议添加")
-                else:
-                    lines.append(f"> ✅ 所有跨时钟域信号均有同步器保护")
-            else:
-                lines.append(f"✅ 未检测到跨时钟域信号")
+        except ValueError as e:
+            return f"❌ {e}"
         except DomainError as e:
             return f"❌ {e}"
+
+        domains = result.clock_domains
+        if len(domains) < 2:
+            return f"ℹ️ 模块 `{module_name}` 只有一个时钟域，无需跨时钟域检查"
+
+        sig_domains: dict[str, list[str]] = defaultdict(list)
+        for d in domains:
+            for sig in d.signals:
+                sig_domains[sig].append(d.clock_name)
+
+        cross_signals = {s: ds for s, ds in sig_domains.items() if len(ds) > 1}
+
+        lines = [
+            f"# 跨时钟域信号: {module_name}",
+            f"",
+        ]
+        if cross_signals:
+            lines.append(f"**发现 {len(cross_signals)} 个跨时钟域信号**")
+            lines.append(f"")
+            lines.append(f"| 信号 | 所属时钟域 | 风险 | 同步器 |")
+            lines.append(f"|------|-----------|------|--------|")
+            for cd in result.cross_domain_signals:
+                sig = cd["signal"]
+                clks = cd["clock_domains"]
+                risk = cd.get("risk", "高")
+                sync = cd.get("synchronizer", "")
+                sync_str = {"two_flop": "双触发器", "handshake": "握手"}.get(sync, "无")
+                risk_icon = "✅" if risk == "低" else "⚠️"
+                lines.append(f"| `{sig}` | {', '.join(clks)} | {risk_icon} {risk} | {sync_str} |")
+            lines.append(f"")
+            unsynced = [cd for cd in result.cross_domain_signals if not cd.get("synchronizer")]
+            if unsynced:
+                lines.append(f"> ⚠️ {len(unsynced)} 个信号未检测到同步器，建议添加")
+            else:
+                lines.append(f"> ✅ 所有跨时钟域信号均有同步器保护")
+        else:
+            lines.append(f"✅ 未检测到跨时钟域信号")
+
+        return "\n".join(lines)
 
     @mcp.tool()
     def rtl_clock_tree(

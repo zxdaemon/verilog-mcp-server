@@ -14,6 +14,8 @@ from typing import Optional
 from .models import (
     ModuleDef,
     TypeDef,
+    PackageDef,
+    FunctionDef,
     ElaboratedInstanceDef,
     ResolvedSignalDef,
     MacroExpansionInfo,
@@ -57,6 +59,23 @@ CREATE TABLE IF NOT EXISTS types (
     kind TEXT,
     members_json TEXT,
     source_text TEXT,
+    file_path TEXT,
+    line INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS packages (
+    name TEXT PRIMARY KEY,
+    file_path TEXT,
+    typedefs_json TEXT,
+    parameters_json TEXT
+);
+
+CREATE TABLE IF NOT EXISTS functions (
+    name TEXT PRIMARY KEY,
+    kind TEXT,
+    return_type TEXT,
+    ports_json TEXT,
+    body TEXT,
     file_path TEXT,
     line INTEGER
 );
@@ -389,6 +408,55 @@ class SQLiteBackend:
             for row in cur.fetchall()
         ]
 
+    # ── Package Operations ──
+
+    def save_package(self, package: PackageDef) -> None:
+        row = package.to_row()
+        self._conn.execute(
+            """INSERT OR REPLACE INTO packages
+               (name, file_path, typedefs_json, parameters_json)
+               VALUES (?, ?, ?, ?)""",
+            (row["name"], row["file_path"], row["typedefs_json"], row["parameters_json"]),
+        )
+        self._conn.commit()
+
+    def load_package(self, name: str) -> Optional[PackageDef]:
+        cur = self._conn.execute("SELECT * FROM packages WHERE name = ?", (name,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        return PackageDef.from_row(_row_to_dict(row))
+
+    def load_all_packages(self) -> list[PackageDef]:
+        cur = self._conn.execute("SELECT * FROM packages")
+        return [PackageDef.from_row(_row_to_dict(row)) for row in cur.fetchall()]
+
+    # ── Function Operations ──
+
+    def save_function(self, func: FunctionDef) -> None:
+        row = func.to_row()
+        self._conn.execute(
+            """INSERT OR REPLACE INTO functions
+               (name, kind, return_type, ports_json, body, file_path, line)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                row["name"], row["kind"], row["return_type"], row["ports_json"],
+                row["body"], row["file_path"], row["line"],
+            ),
+        )
+        self._conn.commit()
+
+    def load_function(self, name: str) -> Optional[FunctionDef]:
+        cur = self._conn.execute("SELECT * FROM functions WHERE name = ?", (name,))
+        row = cur.fetchone()
+        if not row:
+            return None
+        return FunctionDef.from_row(_row_to_dict(row))
+
+    def load_all_functions(self) -> list[FunctionDef]:
+        cur = self._conn.execute("SELECT * FROM functions")
+        return [FunctionDef.from_row(_row_to_dict(row)) for row in cur.fetchall()]
+
     # ── File Meta (mtime / sha256) ──
 
     def get_file_meta(self, file_path: str) -> Optional[dict]:
@@ -425,6 +493,8 @@ class SQLiteBackend:
         self._conn.execute("DELETE FROM files")
         self._conn.execute("DELETE FROM signal_index")
         self._conn.execute("DELETE FROM types")
+        self._conn.execute("DELETE FROM packages")
+        self._conn.execute("DELETE FROM functions")
         self._conn.execute("DELETE FROM file_meta")
         self._conn.execute("DELETE FROM elaborated_instances")
         self._conn.execute("DELETE FROM resolved_signals")

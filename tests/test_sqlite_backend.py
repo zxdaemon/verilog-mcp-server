@@ -4,6 +4,7 @@ import pytest
 from verilog_mcp_server.database.models import (
     ModuleDef, PortDef, ParamDef, SignalDef, InstanceDef,
     AlwaysBlockInfo, AssignmentInfo, TypeDef,
+    PackageDef, FunctionDef,
 )
 from verilog_mcp_server.database.sqlite_backend import SQLiteBackend
 
@@ -162,6 +163,67 @@ def test_clear_all(db, sample_module):
     assert db.load_all_modules() == []
     assert db.load_all_types() == []
     assert db.get_all_file_metas() == {}
+
+
+def test_save_and_load_package(db):
+    pkg = PackageDef(
+        name="my_pkg",
+        file_path="rtl/pkg.sv",
+        typedefs=[TypeDef(name="state_t", kind="enum", members=["IDLE", "RUN"])],
+        parameters=[ParamDef(name="WIDTH", default_value="32")],
+    )
+    db.save_package(pkg)
+    loaded = db.load_package("my_pkg")
+    assert loaded is not None
+    assert loaded.name == "my_pkg"
+    assert loaded.file_path == "rtl/pkg.sv"
+    assert len(loaded.typedefs) == 1
+    assert loaded.typedefs[0].name == "state_t"
+    assert len(loaded.parameters) == 1
+
+
+def test_load_all_packages(db):
+    db.save_package(PackageDef(name="a_pkg", file_path="a.sv"))
+    db.save_package(PackageDef(name="b_pkg", file_path="b.sv"))
+    pkgs = db.load_all_packages()
+    assert len(pkgs) == 2
+    names = {p.name for p in pkgs}
+    assert names == {"a_pkg", "b_pkg"}
+
+
+def test_save_and_load_function(db):
+    func = FunctionDef(
+        name="adder",
+        kind="function",
+        return_type="logic [7:0]",
+        ports=[PortDef(name="a", direction="input"), PortDef(name="b", direction="input")],
+        file_path="rtl/func.sv",
+        line=10,
+    )
+    db.save_function(func)
+    loaded = db.load_function("adder")
+    assert loaded is not None
+    assert loaded.name == "adder"
+    assert loaded.return_type == "logic [7:0]"
+    assert len(loaded.ports) == 2
+    assert loaded.ports[0].direction == "input"
+
+
+def test_load_all_functions(db):
+    db.save_function(FunctionDef(name="double", kind="function"))
+    db.save_function(FunctionDef(name="drive_bus", kind="task"))
+    funcs = db.load_all_functions()
+    assert len(funcs) == 2
+    names = {f.name for f in funcs}
+    assert names == {"double", "drive_bus"}
+
+
+def test_clear_all_clears_packages_and_functions(db):
+    db.save_package(PackageDef(name="p", file_path="p.sv"))
+    db.save_function(FunctionDef(name="f", kind="function"))
+    db.clear_all()
+    assert db.load_all_packages() == []
+    assert db.load_all_functions() == []
 
 
 def test_module_with_complex_port_connections(db):

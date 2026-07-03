@@ -5,7 +5,7 @@ Function / Task 提取器 — 提取 function 和 task 声明
 from __future__ import annotations
 import logging
 
-from .verilog_parser import get_node_text, find_child, find_children
+from .verilog_parser import get_node_text, find_child, find_children, get_node_line
 from ..database.models import FunctionDef, PortDef
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ class FunctionTaskExtractor:
                 ckind = child.kind()
                 if ckind == "simple_identifier":
                     name = get_node_text(child, source_text)
-                elif ckind == "function_body_declaration":
+                elif ckind in ("function_body_declaration", "task_body_declaration"):
                     name, return_type, ports = self._parse_body_decl(child, source_text)
                 elif ckind == "tf_port_list":
                     ports = self._parse_tf_ports(child, source_text)
@@ -65,7 +65,7 @@ class FunctionTaskExtractor:
                 ports=ports,
                 body=body,
                 file_path=file_path,
-                line=node.start_point()[0] + 1,
+                line=get_node_line(node),
             )
         except Exception as e:
             logger.debug(f"提取 {kind} 失败: {e}")

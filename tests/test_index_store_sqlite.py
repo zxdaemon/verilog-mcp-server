@@ -1,7 +1,10 @@
 """测试 IndexStore 的 SQLite 集成"""
 
 import pytest
-from verilog_mcp_server.database.models import ModuleDef, PortDef, SignalDef, TypeDef
+from verilog_mcp_server.database.models import (
+    ModuleDef, PortDef, SignalDef, TypeDef,
+    PackageDef, FunctionDef, ParamDef,
+)
 from verilog_mcp_server.database.index_store import IndexStore
 
 
@@ -167,3 +170,68 @@ def test_persistence_across_instances(tmp_path, sample_module):
     assert loaded is not None
     assert loaded.name == "alu"
     assert len(loaded.ports) == 2
+
+
+def test_add_and_get_package(store):
+    pkg = PackageDef(
+        name="my_pkg",
+        file_path="rtl/pkg.sv",
+        typedefs=[TypeDef(name="state_t", kind="enum", members=["IDLE", "RUN"])],
+        parameters=[ParamDef(name="WIDTH", default_value="32")],
+    )
+    store.add_package(pkg)
+    loaded = store.get_package("my_pkg")
+    assert loaded is not None
+    assert loaded.name == "my_pkg"
+    assert loaded.file_path == "rtl/pkg.sv"
+    assert len(loaded.typedefs) == 1
+    assert loaded.typedefs[0].name == "state_t"
+    assert len(loaded.parameters) == 1
+
+
+def test_search_packages(store):
+    store.add_package(PackageDef(name="axi_pkg", file_path="a.sv"))
+    store.add_package(PackageDef(name="gpio_pkg", file_path="b.sv"))
+    results = store.search_packages("axi")
+    assert len(results) == 1
+    assert results[0].name == "axi_pkg"
+
+
+def test_add_and_get_function(store):
+    func = FunctionDef(
+        name="adder",
+        kind="function",
+        return_type="logic [7:0]",
+        ports=[PortDef(name="a", direction="input"), PortDef(name="b", direction="input")],
+        file_path="rtl/func.sv",
+        line=10,
+    )
+    store.add_function(func)
+    loaded = store.get_function("adder")
+    assert loaded is not None
+    assert loaded.name == "adder"
+    assert loaded.kind == "function"
+    assert loaded.return_type == "logic [7:0]"
+    assert len(loaded.ports) == 2
+
+
+def test_search_functions(store):
+    store.add_function(FunctionDef(name="double", kind="function"))
+    store.add_function(FunctionDef(name="drive_bus", kind="task"))
+    results = store.search_functions("bus")
+    assert len(results) == 1
+    assert results[0].name == "drive_bus"
+
+
+def test_package_and_function_persistence(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    store1 = IndexStore(db_path=db_path)
+    store1.add_package(PackageDef(name="p1", file_path="p.sv"))
+    store1.add_function(FunctionDef(name="f1", kind="function", file_path="f.sv", line=5))
+    store1.save()
+
+    store2 = IndexStore(db_path=db_path)
+    assert store2.get_package("p1") is not None
+    assert store2.get_function("f1") is not None
+    assert len(store2.search_packages("p1")) == 1
+    assert len(store2.search_functions("f1")) == 1

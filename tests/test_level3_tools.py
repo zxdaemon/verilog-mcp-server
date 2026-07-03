@@ -317,3 +317,207 @@ class TestPortDataflow:
         result = tool_fn(module_name="no_port", port_name="nonexistent")
         # 不应崩溃，应返回提示信息
         assert "端口数据流" in result or "ℹ️" in result or "未追踪" in result
+
+
+def make_always_classify_store() -> IndexStore:
+    """创建用于测试 rtl_always_classify 的最小 IndexStore"""
+    store = IndexStore()
+    store.add_module(ModuleDef(
+        name="mod_a",
+        file_path="mod_a.v",
+        line_start=1,
+        line_end=10,
+        ports=[
+            PortDef(name="clk", direction="input"),
+            PortDef(name="rst_n", direction="input"),
+            PortDef(name="q", direction="output", var_type="reg"),
+        ],
+        always_blocks=[
+            AlwaysBlockInfo(
+                sensitivity_list="posedge clk or negedge rst_n",
+                block_type="sequential",
+                statements=[
+                    "if (!rst_n) q <= 1'b0;",
+                    "else q <= ~q;",
+                ],
+            ),
+        ],
+    ))
+    return store
+
+
+class TestAlwaysClassifyTool:
+    def test_always_classify_returns_string(self):
+        """rtl_always_classify 必须返回字符串，不可返回 None"""
+        from mcp.server.fastmcp import FastMCP
+        from verilog_mcp_server.tools.level3_analysis import register_tools
+
+        store = make_always_classify_store()
+        mcp = FastMCP("test")
+        register_tools(mcp, store)
+
+        tool_fn = None
+        for tool_info in mcp._tool_manager._tools.values():
+            if tool_info.name == "rtl_always_classify":
+                tool_fn = tool_info.fn
+                break
+
+        assert tool_fn is not None, "rtl_always_classify tool not registered"
+        result = tool_fn(module_name="mod_a")
+
+        assert isinstance(result, str), f"Expected str, got {type(result)}: {result!r}"
+        assert result, "rtl_always_classify returned empty string"
+        assert "mod_a" in result
+
+    def test_always_classify_missing_module_returns_error_string(self):
+        """rtl_always_classify 对不存在模块应返回错误提示字符串，而非抛异常"""
+        from mcp.server.fastmcp import FastMCP
+        from verilog_mcp_server.tools.level3_analysis import register_tools
+
+        store = make_always_classify_store()
+        mcp = FastMCP("test")
+        register_tools(mcp, store)
+
+        tool_fn = None
+        for tool_info in mcp._tool_manager._tools.values():
+            if tool_info.name == "rtl_always_classify":
+                tool_fn = tool_info.fn
+                break
+
+        assert tool_fn is not None
+        result = tool_fn(module_name="missing_module")
+
+        assert isinstance(result, str), f"Expected str, got {type(result)}: {result!r}"
+        assert "❌" in result or "不存在" in result
+
+
+def make_clock_reset_store() -> IndexStore:
+    """创建用于测试 rtl_clock_domains / rtl_reset_domains 的最小 IndexStore"""
+    store = IndexStore()
+    store.add_module(ModuleDef(
+        name="cr_mod",
+        file_path="cr_mod.v",
+        line_start=1,
+        line_end=20,
+        ports=[
+            PortDef(name="clk", direction="input"),
+            PortDef(name="rst_n", direction="input"),
+            PortDef(name="q", direction="output", var_type="reg"),
+        ],
+        always_blocks=[
+            AlwaysBlockInfo(
+                sensitivity_list="posedge clk or negedge rst_n",
+                block_type="sequential",
+                statements=[
+                    "if (!rst_n) q <= 1'b0;",
+                    "else q <= 1'b1;",
+                ],
+            ),
+        ],
+    ))
+    return store
+
+
+class TestClockDomainTools:
+    def test_clock_domains_returns_string(self):
+        """rtl_clock_domains 必须返回包含时钟信息的字符串"""
+        from mcp.server.fastmcp import FastMCP
+        from verilog_mcp_server.tools.level3_analysis import register_tools
+
+        store = make_clock_reset_store()
+        mcp = FastMCP("test")
+        register_tools(mcp, store)
+
+        tool_fn = None
+        for tool_info in mcp._tool_manager._tools.values():
+            if tool_info.name == "rtl_clock_domains":
+                tool_fn = tool_info.fn
+                break
+
+        assert tool_fn is not None
+        result = tool_fn(module_name="cr_mod")
+
+        assert isinstance(result, str), f"Expected str, got {type(result)}: {result!r}"
+        assert "cr_mod" in result
+        assert "clk" in result
+
+    def test_reset_domains_returns_string(self):
+        """rtl_reset_domains 必须返回包含复位信息的字符串"""
+        from mcp.server.fastmcp import FastMCP
+        from verilog_mcp_server.tools.level3_analysis import register_tools
+
+        store = make_clock_reset_store()
+        mcp = FastMCP("test")
+        register_tools(mcp, store)
+
+        tool_fn = None
+        for tool_info in mcp._tool_manager._tools.values():
+            if tool_info.name == "rtl_reset_domains":
+                tool_fn = tool_info.fn
+                break
+
+        assert tool_fn is not None
+        result = tool_fn(module_name="cr_mod")
+
+        assert isinstance(result, str), f"Expected str, got {type(result)}: {result!r}"
+        assert "cr_mod" in result
+        assert "rst_n" in result or "复位" in result
+
+
+def make_cross_domain_tool_store() -> IndexStore:
+    """创建用于测试 rtl_cross_domain_signals 真正跨时钟域路径的 IndexStore"""
+    store = IndexStore()
+    store.add_module(ModuleDef(
+        name="cdc_tool_mod",
+        file_path="cdc_tool.v",
+        line_start=1,
+        line_end=30,
+        ports=[
+            PortDef(name="clk_a", direction="input"),
+            PortDef(name="clk_b", direction="input"),
+            PortDef(name="rst_n", direction="input"),
+            PortDef(name="data", direction="output", var_type="reg"),
+        ],
+        always_blocks=[
+            AlwaysBlockInfo(
+                sensitivity_list="posedge clk_a",
+                block_type="sequential",
+                statements=[
+                    "data <= 1'b1;",
+                ],
+            ),
+            AlwaysBlockInfo(
+                sensitivity_list="posedge clk_b",
+                block_type="sequential",
+                statements=[
+                    "data <= 1'b0;",
+                ],
+            ),
+        ],
+    ))
+    return store
+
+
+class TestCrossDomainTool:
+    def test_cross_domain_returns_string_with_multiple_domains(self):
+        """rtl_cross_domain_signals 在存在跨时钟域信号时应返回 Markdown 表格字符串"""
+        from mcp.server.fastmcp import FastMCP
+        from verilog_mcp_server.tools.level3_analysis import register_tools
+
+        store = make_cross_domain_tool_store()
+        mcp = FastMCP("test")
+        register_tools(mcp, store)
+
+        tool_fn = None
+        for tool_info in mcp._tool_manager._tools.values():
+            if tool_info.name == "rtl_cross_domain_signals":
+                tool_fn = tool_info.fn
+                break
+
+        assert tool_fn is not None
+        result = tool_fn(module_name="cdc_tool_mod")
+
+        assert isinstance(result, str), f"Expected str, got {type(result)}: {result!r}"
+        assert "cdc_tool_mod" in result
+        assert "跨时钟域信号" in result
+        assert "|" in result  # Markdown table

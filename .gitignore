@@ -28,7 +28,11 @@ uv.lock
 requirements.txt
 CLAUDE.md
 openspec/
-verilog-mcp-server.spec
-scripts/
 .claude/
 docs/
+
+# Non-source artifacts
+python/
+outputs/
+skills/
+.pi/

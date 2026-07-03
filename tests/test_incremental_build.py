@@ -172,3 +172,26 @@ def test_build_incremental_parameter(config, store):
     builder.build(incremental=True)
     # 首次增量构建应发现所有新文件
     assert store.module_count == 2
+
+
+def test_build_indexes_packages_and_functions(config, store, rtl_project):
+    """测试 build() 能正确索引包含 package 和 function 的文件，不触发 AttributeError"""
+    (rtl_project / "pkg.sv").write_text("""\
+package my_pkg;
+    parameter int WIDTH = 32;
+    typedef enum logic [1:0] {IDLE, RUN} state_t;
+endpackage
+""")
+    (rtl_project / "func_mod.v").write_text("""\
+module func_mod;
+    function automatic int double(input int x);
+        double = x * 2;
+    endfunction
+endmodule
+""")
+
+    builder = IndexBuilder(config, store)
+    builder.build()
+
+    assert store.get_package("my_pkg") is not None
+    assert store.get_function("double") is not None

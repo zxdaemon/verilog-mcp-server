@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 from .models import (
     ModuleDef, PortDef, TypeDef,
+    PackageDef, FunctionDef,
     ElaboratedInstanceDef, ResolvedSignalDef,
     MacroExpansionInfo, ElaborationReport,
 )
@@ -99,7 +100,16 @@ class IndexStore:
         for td in self._db.load_all_types():
             self._types[td.name] = td
 
-        logger.info(f"已从 SQLite 加载 {len(self._meta)} 个模块元数据")
+        # 加载 package 和 function
+        for pkg in self._db.load_all_packages():
+            self._packages[pkg.name] = pkg
+        for func in self._db.load_all_functions():
+            self._functions[func.name] = func
+
+        logger.info(
+            f"已从 SQLite 加载 {len(self._meta)} 个模块元数据, "
+            f"{len(self._packages)} 个 package, {len(self._functions)} 个 function"
+        )
 
     def _ensure_loaded(self, name: str) -> Optional[ModuleDef]:
         """确保模块完整数据已加载，返回模块对象"""
@@ -414,6 +424,46 @@ class IndexStore:
         if self._db and not self._types:
             return self._db.load_all_types()
         return list(self._types.values())
+
+    # ── Package Operations ──
+
+    def add_package(self, package: PackageDef) -> None:
+        self._packages[package.name] = package
+        if self._db:
+            self._db.save_package(package)
+
+    def get_package(self, name: str) -> Optional[PackageDef]:
+        return self._packages.get(name)
+
+    def get_all_packages(self) -> list[PackageDef]:
+        return list(self._packages.values())
+
+    def search_packages(self, pattern: str) -> list[PackageDef]:
+        """模糊搜索 package 名（大小写不敏感）"""
+        pattern_lower = pattern.lower()
+        results = [pkg for pkg in self._packages.values() if pattern_lower in pkg.name.lower()]
+        results.sort(key=lambda p: (p.name.lower() != pattern_lower, p.name))
+        return results
+
+    # ── Function Operations ──
+
+    def add_function(self, func: FunctionDef) -> None:
+        self._functions[func.name] = func
+        if self._db:
+            self._db.save_function(func)
+
+    def get_function(self, name: str) -> Optional[FunctionDef]:
+        return self._functions.get(name)
+
+    def get_all_functions(self) -> list[FunctionDef]:
+        return list(self._functions.values())
+
+    def search_functions(self, pattern: str) -> list[FunctionDef]:
+        """模糊搜索 function/task 名（大小写不敏感）"""
+        pattern_lower = pattern.lower()
+        results = [func for func in self._functions.values() if pattern_lower in func.name.lower()]
+        results.sort(key=lambda f: (f.name.lower() != pattern_lower, f.name))
+        return results
 
     def clear(self) -> None:
         """清除所有索引"""

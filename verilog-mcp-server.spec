@@ -67,11 +67,10 @@ hiddenimports = [
     'verilog_mcp_server.analysis.expr_walker',
     'verilog_mcp_server.analysis.visualizer',
     'verilog_mcp_server.templates',
-    'mcp.server',
-    'mcp.server.fastmcp',
-    'mcp.server.stdio',
-    'mcp.types',
 ]
+# collect_all for mcp ensures all submodules (fastmcp.tools, fastmcp.utilities, shared, etc.) are bundled
+tmp_ret = collect_all('mcp')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('tree_sitter_language_pack')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('pyslang')
