@@ -61,7 +61,7 @@ class UvmExtractor:
                     "instance_name": instance_name,
                     "component_type": component_type,
                     "parent_handle": parent_handle,
-                    "line": mc.start_position().row + 1,
+                    "line": mc.start_point.row + 1,
                 })
 
         return results
@@ -72,9 +72,9 @@ class UvmExtractor:
         # method_call 结构: primary(包含 type_id 的 chain) + method_call_body("create")
         primary = find_child(method_call_node, "primary")
         if primary:
-            for i in range(primary.child_count()):
+            for i in range(primary.child_count):
                 child = primary.child(i)
-                if child.kind() == "function_subroutine_call":
+                if child.type == "function_subroutine_call":
                     inner_call = find_child(child, "subroutine_call")
                     if inner_call:
                         inner_method = find_child(inner_call, "method_call")
@@ -113,9 +113,9 @@ class UvmExtractor:
         primary = find_child(method_call_node, "primary")
         if primary:
             # 遍历 primary 的子节点找到最外层的 hierarchical_identifier
-            for i in range(primary.child_count()):
+            for i in range(primary.child_count):
                 child = primary.child(i)
-                if child.kind() == "function_subroutine_call":
+                if child.type == "function_subroutine_call":
                     inner_call = find_child(child, "subroutine_call")
                     if inner_call:
                         inner_method = find_child(inner_call, "method_call")
@@ -190,7 +190,7 @@ class UvmExtractor:
                 "scope": scope,
                 "field_name": field_name,
                 "value_hint": value_hint,
-                "line": mc.start_position().row + 1,
+                "line": mc.start_point.row + 1,
             })
 
         return results
@@ -220,9 +220,9 @@ class UvmExtractor:
                 continue
 
             port_type = ""
-            for i in range(class_type.child_count()):
+            for i in range(class_type.child_count):
                 child = class_type.child(i)
-                if child.kind() == "simple_identifier":
+                if child.type == "simple_identifier":
                     port_type = get_node_text(child, source_text)
                     break
 
@@ -250,7 +250,7 @@ class UvmExtractor:
                     "port_name": port_name,
                     "port_type": port_type,
                     "type_param": type_param,
-                    "line": dd.start_position().row + 1,
+                    "line": dd.start_point.row + 1,
                 })
 
         return ports
@@ -287,7 +287,7 @@ class UvmExtractor:
             results.append({
                 "source_port": source_port,
                 "target_port": target_port,
-                "line": tc.start_position().row + 1,
+                "line": tc.start_point.row + 1,
             })
 
         return results
@@ -318,7 +318,7 @@ class UvmExtractor:
                 "instance_name": instance_name,
                 "component_type": "",
                 "parent_handle": parent_handle,
-                "line": cn.start_position().row + 1,
+                "line": cn.start_point.row + 1,
             })
 
         return results
@@ -327,9 +327,9 @@ class UvmExtractor:
 
     @staticmethod
     def _get_first_identifier(node, source_text: str) -> str:
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "simple_identifier":
+            if child.type == "simple_identifier":
                 return get_node_text(child, source_text)
         return ""
 
@@ -338,8 +338,8 @@ class UvmExtractor:
         values = []
         if not args_node:
             return values
-        for i in range(args_node.child_count()):
+        for i in range(args_node.child_count):
             child = args_node.child(i)
-            if child.kind() == "expression":
+            if child.type == "expression":
                 values.append(get_node_text(child, source_text))
         return values

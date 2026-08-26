@@ -31,11 +31,11 @@ class ClassExtractor:
     def extract_from_source_file(self, tree, source_text: str, file_path: str) -> list[ClassDef]:
         """从 source_file 顶层提取所有 class 定义，并解析 UVM 继承链"""
         classes = []
-        root = tree.root_node()
+        root = tree.root_node
 
-        for i in range(root.child_count()):
+        for i in range(root.child_count):
             child = root.child(i)
-            if child.kind() == "class_declaration":
+            if child.type == "class_declaration":
                 cls = self._extract_class(child, source_text, file_path)
                 if cls:
                     classes.append(cls)
@@ -53,9 +53,9 @@ class ClassExtractor:
         methods: list[dict] = []
         has_uvm_macro = False
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            ckind = child.kind()
+            ckind = child.type
 
             if ckind == "simple_identifier":
                 name = get_node_text(child, source_text)
@@ -90,9 +90,9 @@ class ClassExtractor:
         """解析 class_type，返回基类名，同时填充 type_params"""
         base_name = ""
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            ckind = child.kind()
+            ckind = child.type
 
             if ckind == "simple_identifier":
                 base_name = get_node_text(child, source_text)
@@ -102,12 +102,12 @@ class ClassExtractor:
         return base_name
 
     def _collect_type_params(self, node, source_text: str, type_params: list):
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "list_of_parameter_value_assignments":
-                for j in range(child.child_count()):
+            if child.type == "list_of_parameter_value_assignments":
+                for j in range(child.child_count):
                     pa = child.child(j)
-                    if pa.kind() == "named_parameter_assignment":
+                    if pa.type == "named_parameter_assignment":
                         ident = find_child(pa, "simple_identifier")
                         if ident:
                             type_params.append(get_node_text(ident, source_text))
@@ -115,9 +115,9 @@ class ClassExtractor:
     # ── class_item 处理 ──
 
     def _process_class_item(self, node, source_text: str, member_vars: list, methods: list):
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            ckind = child.kind()
+            ckind = child.type
 
             if ckind == "class_property":
                 self._extract_property(child, source_text, member_vars)
@@ -128,27 +128,27 @@ class ClassExtractor:
 
     def _has_uvm_utils_macro(self, node) -> bool:
         """检测 class_item 中是否包含 uvm_*_utils 宏"""
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "text_macro_usage":
+            if child.type == "text_macro_usage":
                 macro_name = self._get_macro_name(child)
                 if macro_name in _UVM_UTILS_MACROS:
                     return True
         return False
 
     def _get_macro_name(self, node) -> str:
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "simple_identifier":
+            if child.type == "simple_identifier":
                 return get_node_text(child, "")
         return ""
 
     # ── 成员变量 ──
 
     def _extract_property(self, node, source_text: str, member_vars: list):
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "data_declaration":
+            if child.type == "data_declaration":
                 var_info = self._parse_data_declaration(child, source_text)
                 if var_info:
                     member_vars.append(var_info)
@@ -157,14 +157,14 @@ class ClassExtractor:
         dtype = ""
         var_names: list[str] = []
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "data_type_or_implicit":
+            if child.type == "data_type_or_implicit":
                 dtype = get_node_text(child, source_text).strip()
-            elif child.kind() == "list_of_variable_decl_assignments":
-                for j in range(child.child_count()):
+            elif child.type == "list_of_variable_decl_assignments":
+                for j in range(child.child_count):
                     va = child.child(j)
-                    if va.kind() == "variable_decl_assignment":
+                    if va.type == "variable_decl_assignment":
                         ident = find_child(va, "simple_identifier")
                         if ident:
                             var_names.append(get_node_text(ident, source_text))
@@ -184,9 +184,9 @@ class ClassExtractor:
             "parameters": [],
         }
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            ckind = child.kind()
+            ckind = child.type
 
             if ckind == "method_qualifier":
                 method_info["modifiers"].append(get_node_text(child, source_text))
@@ -215,9 +215,9 @@ class ClassExtractor:
             methods.append(method_info)
 
     def _parse_prototype(self, node, source_text: str, method_info: dict):
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            ckind = child.kind()
+            ckind = child.type
             if ckind == "data_type_or_void":
                 method_info["return_type"] = get_node_text(child, source_text)
             elif ckind == "simple_identifier":
@@ -227,9 +227,9 @@ class ClassExtractor:
                 method_info["parameters"] = self._parse_tf_ports(child, source_text)
 
     def _parse_func_decl(self, node, source_text: str, method_info: dict):
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            ckind = child.kind()
+            ckind = child.type
             if ckind in ("function_body_declaration", "task_body_declaration"):
                 self._parse_body_decl(child, source_text, method_info)
             elif ckind == "data_type_or_void":
@@ -239,9 +239,9 @@ class ClassExtractor:
                     method_info["name"] = get_node_text(child, source_text)
 
     def _parse_body_decl(self, node, source_text: str, method_info: dict):
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            ckind = child.kind()
+            ckind = child.type
             if ckind == "simple_identifier":
                 if not method_info["name"]:
                     method_info["name"] = get_node_text(child, source_text)
@@ -252,21 +252,21 @@ class ClassExtractor:
                 method_info["parameters"] = self._parse_tf_ports(child, source_text)
 
     def _parse_constructor(self, node, source_text: str, method_info: dict):
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "class_constructor_arg_list":
+            if child.type == "class_constructor_arg_list":
                 method_info["parameters"] = self._parse_constructor_args(child, source_text)
 
     def _parse_constructor_args(self, node, source_text: str) -> list[dict]:
         params = []
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "class_constructor_arg":
+            if child.type == "class_constructor_arg":
                 pname = ""
                 ptype = ""
-                for j in range(child.child_count()):
+                for j in range(child.child_count):
                     gc = child.child(j)
-                    if gc.kind() == "tf_port_item":
+                    if gc.type == "tf_port_item":
                         pname, ptype = self._parse_tf_port_item(gc, source_text)
                 if pname:
                     params.append({"name": pname, "type": ptype})
@@ -274,9 +274,9 @@ class ClassExtractor:
 
     def _parse_tf_ports(self, node, source_text: str) -> list[dict]:
         params = []
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "tf_port_item":
+            if child.type == "tf_port_item":
                 pname, ptype = self._parse_tf_port_item(child, source_text)
                 if pname:
                     params.append({"name": pname, "type": ptype})
@@ -285,11 +285,11 @@ class ClassExtractor:
     def _parse_tf_port_item(self, node, source_text: str) -> tuple[str, str]:
         name = ""
         dtype = ""
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "data_type_or_implicit":
+            if child.type == "data_type_or_implicit":
                 dtype = get_node_text(child, source_text).strip()
-            elif child.kind() == "simple_identifier":
+            elif child.type == "simple_identifier":
                 name = get_node_text(child, source_text)
         return name, dtype
 

@@ -23,7 +23,7 @@ class ModuleExtractor:
             list[tuple[ModuleDef, AST node]]: (模块定义, module_declaration AST 节点) 列表
         """
         modules: list[tuple[ModuleDef, object]] = []
-        decls = self._find_all_module_declarations(tree.root_node())
+        decls = self._find_all_module_declarations(tree.root_node)
         for node in decls:
             mod = self._extract_single_module(node, source_text, file_path)
             if mod:
@@ -37,10 +37,10 @@ class ModuleExtractor:
         return results
 
     def _collect_module_decls(self, node, results: list) -> None:
-        if node.kind() == "module_declaration":
+        if node.type == "module_declaration":
             results.append(node)
             return  # 不递归到内部
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             self._collect_module_decls(node.child(i), results)
 
     def _extract_single_module(self, node, source_text: str, file_path: str) -> Optional[ModuleDef]:
@@ -53,16 +53,16 @@ class ModuleExtractor:
         if not header:
             header = find_child(node, "module_nonansi_header")
         if header:
-            for i in range(header.child_count()):
+            for i in range(header.child_count):
                 child = header.child(i)
-                if child.kind() == "simple_identifier":
+                if child.type == "simple_identifier":
                     module_name = get_node_text(child, source_text)
                     break
 
         if not module_name:
-            for i in range(node.child_count()):
+            for i in range(node.child_count):
                 child = node.child(i)
-                if child.kind() == "simple_identifier":
+                if child.type == "simple_identifier":
                     module_name = get_node_text(child, source_text)
                     break
 
@@ -90,28 +90,28 @@ class ModuleExtractor:
         if header:
             param_list = find_child(header, "parameter_port_list")
             if param_list:
-                for i in range(param_list.child_count()):
+                for i in range(param_list.child_count):
                     child = param_list.child(i)
-                    if child.kind() == "parameter_declaration":
+                    if child.type == "parameter_declaration":
                         p = self._parse_param_decl(child, source_text, "parameter")
                         if p:
                             params.append(p)
-                    elif child.kind() == "parameter_port_declaration":
+                    elif child.type == "parameter_port_declaration":
                         # wrapper: parameter_port_declaration → parameter_declaration
-                        for j in range(child.child_count()):
+                        for j in range(child.child_count):
                             gc = child.child(j)
-                            if gc.kind() == "parameter_declaration":
+                            if gc.type == "parameter_declaration":
                                 p = self._parse_param_decl(gc, source_text, "parameter")
                                 if p:
                                     params.append(p)
 
         # 2. 从 module body 中提取 parameter 和 localparam
         for child in iter_module_body(module_node):
-            if child.kind() == "parameter_declaration":
+            if child.type == "parameter_declaration":
                 p = self._parse_param_decl(child, source_text, "parameter")
                 if p:
                     params.append(p)
-            elif child.kind() == "local_parameter_declaration":
+            elif child.type == "local_parameter_declaration":
                 p = self._parse_param_decl(child, source_text, "localparam")
                 if p:
                     params.append(p)
@@ -123,27 +123,27 @@ class ModuleExtractor:
         name = ""
         default_value = None
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
 
-            if child.kind() in ("list_of_param_assignments", "list_of_variable_decl_assignments"):
-                for j in range(child.child_count()):
+            if child.type in ("list_of_param_assignments", "list_of_variable_decl_assignments"):
+                for j in range(child.child_count):
                     gc = child.child(j)
-                    if gc.kind() in ("param_assignment", "variable_decl_assignment"):
-                        for k in range(gc.child_count()):
+                    if gc.type in ("param_assignment", "variable_decl_assignment"):
+                        for k in range(gc.child_count):
                             kc = gc.child(k)
-                            if kc.kind() == "simple_identifier" and not name:
+                            if kc.type == "simple_identifier" and not name:
                                 name = get_node_text(kc, source_text)
-                            elif kc.kind() in ("expression", "constant_param_expression",
+                            elif kc.type in ("expression", "constant_param_expression",
                                                 "constant_expression",
                                                 "constant_mintypmax_expression"):
                                 default_value = get_node_text(kc, source_text)
 
         if not name:
             # fallback: 找第一个 simple_identifier
-            for i in range(node.child_count()):
+            for i in range(node.child_count):
                 c = node.child(i)
-                if c.kind() == "simple_identifier":
+                if c.type == "simple_identifier":
                     name = get_node_text(c, source_text)
                     break
 

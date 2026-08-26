@@ -27,9 +27,9 @@ class FunctionExtractor:
                            parent_class: str) -> list[MethodDef]:
         """从 class_declaration AST 节点提取所有方法"""
         methods: list[MethodDef] = []
-        for i in range(class_node.child_count()):
+        for i in range(class_node.child_count):
             child = class_node.child(i)
-            if child.kind() == "class_item":
+            if child.type == "class_item":
                 self._extract_class_item_methods(child, source_text, file_path,
                                                  parent_class, methods)
         return methods
@@ -38,17 +38,17 @@ class FunctionExtractor:
                              parent_package: str) -> list[MethodDef]:
         """从 package_declaration AST 节点提取 function/task"""
         methods: list[MethodDef] = []
-        for i in range(package_node.child_count()):
+        for i in range(package_node.child_count):
             child = package_node.child(i)
-            if child.kind() == "package_item":
-                for j in range(child.child_count()):
+            if child.type == "package_item":
+                for j in range(child.child_count):
                     item = child.child(j)
-                    if item.kind() == "function_declaration":
+                    if item.type == "function_declaration":
                         m = self._extract_func(item, source_text, file_path, "function",
                                                parent_package=parent_package)
                         if m:
                             methods.append(m)
-                    elif item.kind() == "task_declaration":
+                    elif item.type == "task_declaration":
                         m = self._extract_func(item, source_text, file_path, "task",
                                                parent_package=parent_package)
                         if m:
@@ -59,15 +59,15 @@ class FunctionExtractor:
 
     def _extract_class_item_methods(self, node, source_text: str, file_path: str,
                                     parent_class: str, methods: list[MethodDef]):
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            ckind = child.kind()
+            ckind = child.type
 
             if ckind == "class_method":
                 modifiers = self._collect_modifiers(child, source_text)
-                for j in range(child.child_count()):
+                for j in range(child.child_count):
                     inner = child.child(j)
-                    ikind = inner.kind()
+                    ikind = inner.type
                     if ikind == "function_declaration":
                         m = self._extract_func(inner, source_text, file_path, "function",
                                                parent_class=parent_class, modifiers=modifiers)
@@ -106,9 +106,9 @@ class FunctionExtractor:
         return_type = ""
         parameters: list[dict] = []
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            ckind = child.kind()
+            ckind = child.type
 
             if ckind in ("function_body_declaration", "task_body_declaration"):
                 name, return_type, parameters = self._parse_body_decl(child, source_text)
@@ -126,9 +126,9 @@ class FunctionExtractor:
             modifiers = []
         if method_type == "function" and "automatic" not in modifiers:
             # check if 'automatic' keyword is present
-            for i in range(node.child_count()):
+            for i in range(node.child_count):
                 child = node.child(i)
-                if child.kind() == "automatic":
+                if child.type == "automatic":
                     modifiers.append("automatic")
                     break
 
@@ -157,9 +157,9 @@ class FunctionExtractor:
         return_type = ""
         parameters: list[dict] = []
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            ckind = child.kind()
+            ckind = child.type
 
             if ckind == "data_type_or_void":
                 return_type = get_node_text(child, source_text)
@@ -191,9 +191,9 @@ class FunctionExtractor:
                              parent_class: str, modifiers: list[str]) -> MethodDef | None:
         parameters: list[dict] = []
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "class_constructor_arg_list":
+            if child.type == "class_constructor_arg_list":
                 parameters = self._parse_constructor_args(child, source_text)
 
         return MethodDef(
@@ -214,9 +214,9 @@ class FunctionExtractor:
         return_type = ""
         parameters: list[dict] = []
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            ckind = child.kind()
+            ckind = child.type
             if ckind == "simple_identifier":
                 name = get_node_text(child, source_text)
             elif ckind == "data_type_or_void":
@@ -228,9 +228,9 @@ class FunctionExtractor:
 
     def _parse_tf_ports(self, node, source_text: str) -> list[dict]:
         ports = []
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "tf_port_item":
+            if child.type == "tf_port_item":
                 p = self._parse_port_item(child, source_text)
                 if p:
                     ports.append(p)
@@ -241,9 +241,9 @@ class FunctionExtractor:
         dtype = ""
         name = ""
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            ckind = child.kind()
+            ckind = child.type
             if ckind in ("input", "output", "inout", "ref"):
                 direction = ckind
             elif ckind == "data_type_or_implicit":
@@ -257,14 +257,14 @@ class FunctionExtractor:
 
     def _parse_constructor_args(self, node, source_text: str) -> list[dict]:
         args = []
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "class_constructor_arg":
+            if child.type == "class_constructor_arg":
                 pname = ""
                 ptype = ""
-                for j in range(child.child_count()):
+                for j in range(child.child_count):
                     gc = child.child(j)
-                    if gc.kind() == "tf_port_item":
+                    if gc.type == "tf_port_item":
                         p = self._parse_port_item(gc, source_text)
                         if p:
                             pname = p["name"]
@@ -277,9 +277,9 @@ class FunctionExtractor:
 
     def _collect_modifiers(self, class_method_node, source_text: str) -> list[str]:
         modifiers = []
-        for i in range(class_method_node.child_count()):
+        for i in range(class_method_node.child_count):
             child = class_method_node.child(i)
-            if child.kind() == "method_qualifier":
+            if child.type == "method_qualifier":
                 text = get_node_text(child, source_text).strip()
                 if text:
                     modifiers.append(text)

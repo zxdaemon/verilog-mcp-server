@@ -51,9 +51,9 @@ class PortExtractor:
         port_names = []
         list_of_ports = find_child(header_node, "list_of_ports")
         if list_of_ports:
-            for i in range(list_of_ports.child_count()):
+            for i in range(list_of_ports.child_count):
                 child = list_of_ports.child(i)
-                if child.kind() == "port":
+                if child.type == "port":
                     name_node = find_child(child, "simple_identifier")
                     if name_node:
                         port_names.append(get_node_text(name_node, source_text))
@@ -61,9 +61,9 @@ class PortExtractor:
         # 2. 从 module_item 扫描 port_declaration 和 data_declaration
         port_info: dict[str, dict] = {name: {"direction": "inout", "var_type": "", "width_range": None, "signed": False}
                                        for name in port_names}
-        for i in range(module_node.child_count()):
+        for i in range(module_node.child_count):
             child = module_node.child(i)
-            if child.kind() != "module_item":
+            if child.type != "module_item":
                 continue
 
             # 2a. port_declaration: 提取方向 + 位宽 + 类型
@@ -124,13 +124,13 @@ class PortExtractor:
             nonlocal width_range, var_type, signed
             if depth > 6:
                 return
-            if n.kind() == "packed_dimension":
+            if n.type == "packed_dimension":
                 width_range = get_node_text(n, source_text)
-            elif n.kind() in ("wire", "reg", "logic", "integer"):
-                var_type = n.kind()
-            elif n.kind() == "signed":
+            elif n.type in ("wire", "reg", "logic", "integer"):
+                var_type = n.type
+            elif n.type == "signed":
                 signed = True
-            for ci in range(n.child_count()):
+            for ci in range(n.child_count):
                 _search(n.child(ci), depth + 1)
 
         _search(decl_node)
@@ -147,11 +147,11 @@ class PortExtractor:
         def _collect(n, depth=0):
             if depth > 8:
                 return
-            if n.kind() in ("packed_dimension", "unpacked_dimension"):
+            if n.type in ("packed_dimension", "unpacked_dimension"):
                 return
-            if n.kind() == "simple_identifier":
+            if n.type == "simple_identifier":
                 names.append(get_node_text(n, source_text))
-            for ci in range(n.child_count()):
+            for ci in range(n.child_count):
                 _collect(n.child(ci), depth + 1)
 
         _collect(target)
@@ -165,9 +165,9 @@ class PortExtractor:
         if list_of_ports is None:
             return ports
 
-        for i in range(list_of_ports.child_count()):
+        for i in range(list_of_ports.child_count):
             child = list_of_ports.child(i)
-            if child.kind() == "ansi_port_declaration":
+            if child.type == "ansi_port_declaration":
                 port = self._extract_ansi_port(child, source_text)
                 if port:
                     ports.append(port)
@@ -183,10 +183,10 @@ class PortExtractor:
         signed = False
         description = ""
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
 
-            if child.kind() == "interface_port_header":
+            if child.type == "interface_port_header":
                 # interface 端口: axis_if.slave rx
                 # interface_port_header 包含 interface 类型名和 modport
                 iface_type, iface_name = self._parse_interface_port(node, source_text, i)
@@ -195,7 +195,7 @@ class PortExtractor:
                     var_type = "interface"
                     name = iface_name
 
-            elif child.kind() == "net_port_header":
+            elif child.type == "net_port_header":
                 hdr_dir, hdr_type, hdr_width, hdr_signed = self._parse_port_header(child, source_text)
                 direction = hdr_dir
                 var_type = hdr_type if hdr_type else "wire"
@@ -204,7 +204,7 @@ class PortExtractor:
                 if hdr_signed:
                     signed = True
 
-            elif child.kind() == "variable_port_header":
+            elif child.type == "variable_port_header":
                 hdr_dir, hdr_type, hdr_width, hdr_signed = self._parse_port_header(child, source_text)
                 direction = hdr_dir
                 if hdr_type:
@@ -222,7 +222,7 @@ class PortExtractor:
                         description = f"interface:{hdr_text}"
                         var_type = "interface"
 
-            elif child.kind() == "simple_identifier":
+            elif child.type == "simple_identifier":
                 name = get_node_text(child, source_text)
 
         if name:
@@ -247,9 +247,9 @@ class PortExtractor:
         header = ansi_port_node.child(iface_header_idx)
 
         # 从 interface_port_header 中提取类型名和 modport
-        for j in range(header.child_count()):
+        for j in range(header.child_count):
             child = header.child(j)
-            if child.kind() == "simple_identifier":
+            if child.type == "simple_identifier":
                 text = get_node_text(child, source_text)
                 if not iface_type:
                     iface_type = text
@@ -257,9 +257,9 @@ class PortExtractor:
                     iface_type += f".{text}"
 
         # 从 ansi_port_declaration 中提取端口名（header 之后的 simple_identifier）
-        for j in range(iface_header_idx + 1, ansi_port_node.child_count()):
+        for j in range(iface_header_idx + 1, ansi_port_node.child_count):
             child = ansi_port_node.child(j)
-            if child.kind() == "simple_identifier":
+            if child.type == "simple_identifier":
                 port_name = get_node_text(child, source_text)
                 break
 
@@ -272,20 +272,20 @@ class PortExtractor:
         width_range = None
         signed = False
 
-        for i in range(header_node.child_count()):
+        for i in range(header_node.child_count):
             child = header_node.child(i)
 
-            if child.kind() == "port_direction":
+            if child.type == "port_direction":
                 direction = get_node_text(child, source_text).strip()
 
-            elif child.kind() == "net_port_type":
+            elif child.type == "net_port_type":
                 w, s = self._parse_port_type(child, source_text)
                 if w:
                     width_range = w
                 if s:
                     signed = True
 
-            elif child.kind() == "variable_port_type":
+            elif child.type == "variable_port_type":
                 vt, w, s = self._parse_variable_port_type(child, source_text)
                 if vt:
                     var_type = vt
@@ -295,14 +295,14 @@ class PortExtractor:
                     signed = True
 
             # 直接 wire/reg/logic 关键字
-            elif child.kind() in ("wire", "reg", "logic", "integer"):
-                var_type = child.kind()
+            elif child.type in ("wire", "reg", "logic", "integer"):
+                var_type = child.type
 
             # 直接 packed_dimension
-            elif child.kind() == "packed_dimension":
+            elif child.type == "packed_dimension":
                 width_range = get_node_text(child, source_text)
 
-            elif child.kind() == "signed":
+            elif child.type == "signed":
                 signed = True
 
         return direction, var_type, width_range, signed
@@ -316,9 +316,9 @@ class PortExtractor:
             nonlocal width_range, signed
             if depth > 6:
                 return
-            if n.kind() == "packed_dimension":
+            if n.type == "packed_dimension":
                 width_range = get_node_text(n, source_text)
-            for i in range(n.child_count()):
+            for i in range(n.child_count):
                 _search(n.child(i), depth + 1)
 
         _search(node)
@@ -334,13 +334,13 @@ class PortExtractor:
             nonlocal var_type, width_range, signed
             if depth > 6:
                 return
-            if n.kind() in ("reg", "logic", "integer"):
-                var_type = n.kind()
-            elif n.kind() == "packed_dimension":
+            if n.type in ("reg", "logic", "integer"):
+                var_type = n.type
+            elif n.type == "packed_dimension":
                 width_range = get_node_text(n, source_text)
-            elif n.kind() == "signed":
+            elif n.type == "signed":
                 signed = True
-            for i in range(n.child_count()):
+            for i in range(n.child_count):
                 _search(n.child(i), depth + 1)
 
         _search(node)

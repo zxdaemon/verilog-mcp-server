@@ -26,7 +26,7 @@ class FunctionTaskExtractor:
         """从模块体中提取所有 function/task"""
         results = []
         for child in _iter_children(module_node):
-            kind = child.kind()
+            kind = child.type
             if kind == "function_declaration":
                 func = self._extract_function(child, source_text, file_path, "function")
                 if func:
@@ -45,7 +45,7 @@ class FunctionTaskExtractor:
             ports = []
 
             for child in _iter_children(node):
-                ckind = child.kind()
+                ckind = child.type
                 if ckind == "simple_identifier":
                     name = get_node_text(child, source_text)
                 elif ckind in ("function_body_declaration", "task_body_declaration"):
@@ -78,7 +78,7 @@ class FunctionTaskExtractor:
         ports = []
 
         for child in _iter_children(node):
-            ckind = child.kind()
+            ckind = child.type
             if ckind == "simple_identifier":
                 name = get_node_text(child, source_text)
             elif ckind == "data_type_or_void":
@@ -95,7 +95,7 @@ class FunctionTaskExtractor:
         """解析 tf_port_list"""
         ports = []
         for child in _iter_children(node):
-            if child.kind() == "tf_port_item":
+            if child.type == "tf_port_item":
                 port = self._parse_tf_port_item(child, source_text)
                 if port:
                     ports.append(port)
@@ -109,7 +109,7 @@ class FunctionTaskExtractor:
         name = ""
 
         for child in _iter_children(node):
-            ckind = child.kind()
+            ckind = child.type
             if ckind in _PORT_DIR_MAP:
                 direction = _PORT_DIR_MAP[ckind]
             elif ckind == "tf_port_direction":
@@ -138,5 +138,5 @@ class FunctionTaskExtractor:
 
 def _iter_children(node):
     """遍历节点所有子节点"""
-    for i in range(node.child_count()):
+    for i in range(node.child_count):
         yield node.child(i)

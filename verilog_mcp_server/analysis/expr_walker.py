@@ -84,14 +84,14 @@ def extract_signal_refs(expr_text: str) -> list[str]:
     def _walk(node, depth: int = 0):
         if depth > 50:
             return
-        kind = node.kind()
+        kind = node.type
         if kind in ("simple_identifier", "hierarchical_identifier"):
             name = source[node.start_byte:node.end_byte].decode("utf-8")
             if (name not in seen and name.lower() not in _KEYWORDS
                     and not _is_constant(name)):
                 seen.add(name)
                 result.append(name)
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             _walk(node.child(i), depth + 1)
 
     _walk(tree.root_node)

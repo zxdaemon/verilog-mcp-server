@@ -18,35 +18,35 @@ class SvaExtractor:
         """从 module_declaration 提取所有断言"""
         assertions = []
 
-        for i in range(module_node.child_count()):
+        for i in range(module_node.child_count):
             child = module_node.child(i)
 
             # Module-level concurrent assertions
-            if child.kind() == "concurrent_assertion_item":
+            if child.type == "concurrent_assertion_item":
                 sva = self._extract_concurrent_assertion(child, source_text)
                 if sva:
                     assertions.append(sva)
 
             # Property and sequence declarations
-            elif child.kind() == "property_declaration":
+            elif child.type == "property_declaration":
                 sva = self._extract_property_decl(child, source_text)
                 if sva:
                     assertions.append(sva)
-            elif child.kind() == "sequence_declaration":
+            elif child.type == "sequence_declaration":
                 sva = self._extract_sequence_decl(child, source_text)
                 if sva:
                     assertions.append(sva)
 
             # Immediate assertions in procedural blocks (recursive)
-            elif child.kind() == "always_construct" or child.kind() == "initial_construct":
+            elif child.type == "always_construct" or child.type == "initial_construct":
                 for sva in self._extract_immediate_from_block(child, source_text):
                     assertions.append(sva)
 
             # Also check module_item for always/initial blocks
-            elif child.kind() == "module_item":
-                for j in range(child.child_count()):
+            elif child.type == "module_item":
+                for j in range(child.child_count):
                     gc = child.child(j)
-                    if gc.kind() in ("always_construct", "initial_construct"):
+                    if gc.type in ("always_construct", "initial_construct"):
                         for sva in self._extract_immediate_from_block(gc, source_text):
                             assertions.append(sva)
 
@@ -54,13 +54,13 @@ class SvaExtractor:
 
     def _extract_concurrent_assertion(self, node, source_text: str) -> SvaDef | None:
         """提取 concurrent assertion item"""
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "assert_property_statement":
+            if child.type == "assert_property_statement":
                 return self._parse_property_statement(child, source_text, "assert")
-            elif child.kind() == "assume_property_statement":
+            elif child.type == "assume_property_statement":
                 return self._parse_property_statement(child, source_text, "assume")
-            elif child.kind() == "cover_property_statement":
+            elif child.type == "cover_property_statement":
                 return self._parse_property_statement(child, source_text, "cover")
         return None
 
@@ -70,16 +70,16 @@ class SvaExtractor:
         prop = ""
         action = ""
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "property_spec":
-                for j in range(child.child_count()):
+            if child.type == "property_spec":
+                for j in range(child.child_count):
                     gc = child.child(j)
-                    if gc.kind() == "clocking_event":
+                    if gc.type == "clocking_event":
                         clock = get_node_text(gc, source_text).strip()
-                    elif gc.kind() == "property_expr":
+                    elif gc.type == "property_expr":
                         prop = get_node_text(gc, source_text).strip()
-            elif child.kind() == "action_block":
+            elif child.type == "action_block":
                 action = get_node_text(child, source_text).strip()
 
         return SvaDef(type="concurrent", keyword=keyword,
@@ -90,11 +90,11 @@ class SvaExtractor:
         name = ""
         body = ""
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "simple_identifier":
+            if child.type == "simple_identifier":
                 name = get_node_text(child, source_text)
-            elif child.kind() == "property_spec":
+            elif child.type == "property_spec":
                 body = get_node_text(child, source_text).strip()
 
         return SvaDef(type="property", keyword="property", name=name, body=body)
@@ -104,11 +104,11 @@ class SvaExtractor:
         name = ""
         body = ""
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "simple_identifier":
+            if child.type == "simple_identifier":
                 name = get_node_text(child, source_text)
-            elif child.kind() == "sequence_expr":
+            elif child.type == "sequence_expr":
                 body = get_node_text(child, source_text).strip()
 
         return SvaDef(type="sequence", keyword="sequence", name=name, body=body)
@@ -120,7 +120,7 @@ class SvaExtractor:
         def _walk(n, depth=0):
             if depth > 12:
                 return
-            kind = n.kind()
+            kind = n.type
             if kind == "simple_immediate_assert_statement":
                 results.append(self._extract_immediate_assert(n, source_text, "assert"))
             elif kind == "simple_immediate_assume_statement":
@@ -129,7 +129,7 @@ class SvaExtractor:
                 results.append(self._extract_immediate_assert(n, source_text, "cover"))
             elif kind == "immediate_assert_statement":
                 results.append(self._extract_immediate_assert(n, source_text, "assert"))
-            for i in range(n.child_count()):
+            for i in range(n.child_count):
                 _walk(n.child(i), depth + 1)
 
         _walk(node)
@@ -140,11 +140,11 @@ class SvaExtractor:
         expression = ""
         action = ""
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "expression":
+            if child.type == "expression":
                 expression = get_node_text(child, source_text).strip()
-            elif child.kind() == "action_block":
+            elif child.type == "action_block":
                 action = get_node_text(child, source_text).strip()
 
         return SvaDef(type="immediate", keyword=keyword,

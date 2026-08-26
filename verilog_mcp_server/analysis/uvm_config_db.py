@@ -20,7 +20,7 @@ class UvmConfigDbTracer:
     def analyze_file(self, tree, source_text: str, file_path: str) -> list[UvmConfigEntry]:
         """分析单个文件中的 config_db 调用"""
         entries = []
-        calls = self._extractor.find_config_db_calls(tree.root_node(), source_text)
+        calls = self._extractor.find_config_db_calls(tree.root_node, source_text)
 
         for call in calls:
             entries.append(UvmConfigEntry(

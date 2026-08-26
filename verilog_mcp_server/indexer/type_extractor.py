@@ -19,7 +19,7 @@ class TypeExtractor:
         types: list[TypeDef] = []
 
         for child in iter_module_body_deep(module_body_node):
-            kind = child.kind()
+            kind = child.type
 
             if kind == "data_declaration":
                 # data_declaration 可能包含 type_declaration (typedef) 或 enum/struct 声明
@@ -30,10 +30,10 @@ class TypeExtractor:
     def _extract_from_data_decl(self, node, source_text: str, file_path: str,
                                  results: list[TypeDef]):
         """从 data_declaration 中提取类型"""
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
 
-            if child.kind() == "type_declaration":
+            if child.type == "type_declaration":
                 # typedef enum/struct
                 self._extract_typedef(child, source_text, file_path, results)
                 return
@@ -45,21 +45,21 @@ class TypeExtractor:
         kind = "typedef"
         members: list[str] = []
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
 
-            if child.kind() == "data_type":
-                for j in range(child.child_count()):
+            if child.type == "data_type":
+                for j in range(child.child_count):
                     gc = child.child(j)
-                    if gc.kind() == "enum":
+                    if gc.type == "enum":
                         members = self._extract_enum_members(child, source_text)
                         kind = "enum"
-                    elif gc.kind() == "struct_union":
+                    elif gc.type == "struct_union":
                         # struct_union contains 'struct' keyword, struct members are in data_type
                         members = self._extract_struct_members(child, source_text)
                         kind = "struct"
 
-            elif child.kind() == "simple_identifier":
+            elif child.type == "simple_identifier":
                 name = get_node_text(child, source_text)
 
         if name and kind != "typedef":
@@ -76,13 +76,13 @@ class TypeExtractor:
         def _walk(n, depth=0):
             if depth > 30:
                 return
-            if n.kind() == "enum_name_declaration":
-                for i in range(n.child_count()):
-                    if n.child(i).kind() == "simple_identifier":
+            if n.type == "enum_name_declaration":
+                for i in range(n.child_count):
+                    if n.child(i).type == "simple_identifier":
                         text = get_node_text(n.child(i), source_text)
                         if text not in members:
                             members.append(text)
-            for i in range(n.child_count()):
+            for i in range(n.child_count):
                 _walk(n.child(i), depth + 1)
 
         _walk(data_type_node)
@@ -95,19 +95,19 @@ class TypeExtractor:
         def _walk(n, depth=0):
             if depth > 30:
                 return
-            if n.kind() == "struct_union_member":
-                for i in range(n.child_count()):
+            if n.type == "struct_union_member":
+                for i in range(n.child_count):
                     c = n.child(i)
-                    if c.kind() in ("list_of_variable_decl_assignments",
+                    if c.type in ("list_of_variable_decl_assignments",
                                      "list_of_net_decl_assignments"):
-                        for j in range(c.child_count()):
+                        for j in range(c.child_count):
                             gc = c.child(j)
-                            if gc.kind() in ("variable_decl_assignment",
+                            if gc.type in ("variable_decl_assignment",
                                               "net_decl_assignment"):
-                                for k in range(gc.child_count()):
-                                    if gc.child(k).kind() == "simple_identifier":
+                                for k in range(gc.child_count):
+                                    if gc.child(k).type == "simple_identifier":
                                         members.append(get_node_text(gc.child(k), source_text))
-            for i in range(n.child_count()):
+            for i in range(n.child_count):
                 _walk(n.child(i), depth + 1)
 
         _walk(data_type_node)

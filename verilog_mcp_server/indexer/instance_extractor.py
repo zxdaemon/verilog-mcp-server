@@ -30,13 +30,13 @@ class InstanceExtractor:
         instances = []
 
         for child in iter_module_body_deep(module_body_node):
-            if child.kind() == "module_instantiation":
+            if child.type == "module_instantiation":
                 insts = self._extract_instantiation(child, source_text, file_path)
                 instances.extend(insts)
-            elif child.kind() == "gate_instantiation":
+            elif child.type == "gate_instantiation":
                 insts = self._extract_gate_instantiation(child, source_text, file_path)
                 instances.extend(insts)
-            elif child.kind() == "continuous_assign":
+            elif child.type == "continuous_assign":
                 pass  # defparam handled separately
 
         return instances
@@ -48,19 +48,19 @@ class InstanceExtractor:
         instances: list[InstanceDef] = []
         line = get_node_line(node)
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
 
-            if child.kind() == "simple_identifier":
+            if child.type == "simple_identifier":
                 # 第一个 simple_identifier 是被例化的模块名
                 if module_type is None:
                     module_type = get_node_text(child, source_text)
                 module_type = get_node_text(child, source_text)
 
-            elif child.kind() == "parameter_value_assignment":
+            elif child.type == "parameter_value_assignment":
                 param_overrides = self._extract_param_overrides(child, source_text)
 
-            elif child.kind() == "hierarchical_instance":
+            elif child.type == "hierarchical_instance":
                 if module_type:
                     inst = self._extract_hierarchical_instance(child, source_text, file_path, module_type, param_overrides)
                     if inst:
@@ -77,13 +77,13 @@ class InstanceExtractor:
         port_connections: dict[str, str] = {}
         line = get_node_line(node)
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
 
-            if child.kind() == "name_of_instance":
+            if child.type == "name_of_instance":
                 instance_name = get_node_text(child, source_text)
 
-            elif child.kind() == "list_of_port_connections":
+            elif child.type == "list_of_port_connections":
                 self._extract_port_connections(child, source_text, module_type,
                                                 port_connections)
 
@@ -103,13 +103,13 @@ class InstanceExtractor:
         """提取端口连接，支持命名和位置混合"""
         pos_index = 0
 
-        for j in range(list_node.child_count()):
+        for j in range(list_node.child_count):
             pc = list_node.child(j)
-            if pc.kind() == "named_port_connection":
+            if pc.type == "named_port_connection":
                 formal, actual = self._extract_named_port(pc, source_text)
                 if formal:
                     result[formal] = actual
-            elif pc.kind() == "ordered_port_connection":
+            elif pc.type == "ordered_port_connection":
                 actual = get_node_text(pc, source_text)
                 formal = self._resolve_positional_port(module_type, pos_index)
                 result[formal] = actual
@@ -128,10 +128,10 @@ class InstanceExtractor:
         formal = ""
         actual = ""
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
 
-            if child.kind() == "simple_identifier":
+            if child.type == "simple_identifier":
                 # 第一个 simple_identifier 是形式端口名
                 if not formal:
                     formal = get_node_text(child, source_text)
@@ -139,7 +139,7 @@ class InstanceExtractor:
                     # 第二个可能是信号名（在 .name(value) 中）
                     pass
 
-            elif child.kind() == "expression":
+            elif child.type == "expression":
                 actual = get_node_text(child, source_text)
 
         return formal, actual
@@ -210,9 +210,9 @@ class InstanceExtractor:
         gate_type = None
         line = get_node_line(node)
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            ckind = child.kind()
+            ckind = child.type
             if ckind == "simple_identifier":
                 gate_type = get_node_text(child, source_text)
             elif ckind in ("gatetype_switch", "cmos_switchtype"):
@@ -235,13 +235,13 @@ class InstanceExtractor:
         port_connections = {}
 
         for child in _iter_children(node):
-            if child.kind() in ("name_of_instance", "simple_identifier"):
+            if child.type in ("name_of_instance", "simple_identifier"):
                 name = get_node_text(child, source_text)
                 if name != gate_type and not name.startswith("("):
                     inst_name = name
-            elif child.kind() in ("list_of_port_connections", "gate_instance"):
+            elif child.type in ("list_of_port_connections", "gate_instance"):
                 for gc in _iter_children(child):
-                    if gc.kind() in ("expression", "simple_identifier"):
+                    if gc.type in ("expression", "simple_identifier"):
                         port_connections[f"__pos_{pos_index}"] = get_node_text(gc, source_text)
                         pos_index += 1
 
@@ -262,9 +262,9 @@ class InstanceExtractor:
         """从模块体收集所有 defparam 语句"""
         overrides = {}
         for child in iter_module_body_deep(module_node):
-            if child.kind() in ("non_port_module_item", "module_item"):
+            if child.type in ("non_port_module_item", "module_item"):
                 for gc in _iter_children(child):
-                    if gc.kind() == "defparam_assignment":
+                    if gc.type == "defparam_assignment":
                         self._parse_defparam(gc, source_text, overrides)
         return overrides
 
@@ -277,5 +277,5 @@ class InstanceExtractor:
 
 
 def _iter_children(node):
-    for i in range(node.child_count()):
+    for i in range(node.child_count):
         yield node.child(i)

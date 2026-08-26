@@ -25,9 +25,9 @@ class SignalExtractor:
         signals = []
 
         for child in iter_module_body_deep(module_body_node):
-            if child.kind() == "net_declaration":
+            if child.type == "net_declaration":
                 signals.extend(self._extract_net_declaration(child, source_text))
-            elif child.kind() == "data_declaration":
+            elif child.type == "data_declaration":
                 signals.extend(self._extract_data_declaration(child, source_text))
 
         return signals
@@ -39,28 +39,28 @@ class SignalExtractor:
         signed = False
         signals = []
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
 
-            if child.kind() == "net_type":
+            if child.type == "net_type":
                 # wire / wand / wor / tri 等
-                for j in range(child.child_count()):
+                for j in range(child.child_count):
                     ntype = child.child(j)
-                    if ntype.kind() in ("wire", "wand", "wor", "tri"):
-                        var_type = ntype.kind()
+                    if ntype.type in ("wire", "wand", "wor", "tri"):
+                        var_type = ntype.type
 
-            elif child.kind() == "data_type_or_implicit":
+            elif child.type == "data_type_or_implicit":
                 # 可能的宽度 [31:0]
-                for j in range(child.child_count()):
+                for j in range(child.child_count):
                     dt_child = child.child(j)
-                    if dt_child.kind() == "implicit_data_type":
-                        for k in range(dt_child.child_count()):
-                            if dt_child.child(k).kind() == "packed_dimension":
+                    if dt_child.type == "implicit_data_type":
+                        for k in range(dt_child.child_count):
+                            if dt_child.child(k).type == "packed_dimension":
                                 width_range = get_node_text(dt_child.child(k), source_text)
-                            elif dt_child.child(k).kind() == "signed":
+                            elif dt_child.child(k).type == "signed":
                                 signed = True
 
-            elif child.kind() == "list_of_net_decl_assignments":
+            elif child.type == "list_of_net_decl_assignments":
                 decl_names = self._extract_names_from_assignments(child, source_text)
                 for name in decl_names:
                     signals.append(SignalDef(
@@ -77,27 +77,27 @@ class SignalExtractor:
         signed = False
         signals = []
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
 
-            if child.kind() == "data_type_or_implicit":
-                for j in range(child.child_count()):
+            if child.type == "data_type_or_implicit":
+                for j in range(child.child_count):
                     dt = child.child(j)
-                    if dt.kind() == "data_type":
-                        for k in range(dt.child_count()):
+                    if dt.type == "data_type":
+                        for k in range(dt.child_count):
                             dtc = dt.child(k)
-                            if dtc.kind() in ("reg", "logic", "integer", "real"):
-                                var_type = dtc.kind()
-                            elif dtc.kind() == "packed_dimension":
+                            if dtc.type in ("reg", "logic", "integer", "real"):
+                                var_type = dtc.type
+                            elif dtc.type == "packed_dimension":
                                 width_range = get_node_text(dtc, source_text)
-                            elif dtc.kind() == "signed":
+                            elif dtc.type == "signed":
                                 signed = True
-                    elif dt.kind() == "implicit_data_type":
-                        for k in range(dt.child_count()):
-                            if dt.child(k).kind() == "packed_dimension":
+                    elif dt.type == "implicit_data_type":
+                        for k in range(dt.child_count):
+                            if dt.child(k).type == "packed_dimension":
                                 width_range = get_node_text(dt.child(k), source_text)
 
-            elif child.kind() == "list_of_variable_decl_assignments":
+            elif child.type == "list_of_variable_decl_assignments":
                 decl_names = self._extract_names_from_assignments(child, source_text)
                 for name in decl_names:
                     signals.append(SignalDef(
@@ -110,12 +110,12 @@ class SignalExtractor:
     def _extract_names_from_assignments(self, list_node, source_text: str) -> list[str]:
         """从 list_of_*_decl_assignments 中提取变量名"""
         names = []
-        for i in range(list_node.child_count()):
+        for i in range(list_node.child_count):
             child = list_node.child(i)
-            if child.kind() in ("net_decl_assignment", "variable_decl_assignment"):
-                for j in range(child.child_count()):
+            if child.type in ("net_decl_assignment", "variable_decl_assignment"):
+                for j in range(child.child_count):
                     gc = child.child(j)
-                    if gc.kind() == "simple_identifier":
+                    if gc.type == "simple_identifier":
                         names.append(get_node_text(gc, source_text))
         return names
 
@@ -126,7 +126,7 @@ class SignalExtractor:
         assignments = []
 
         for child in iter_module_body_deep(module_body_node):
-            if child.kind() == "continuous_assign":
+            if child.type == "continuous_assign":
                 assign = self._extract_one_assign(child, source_text, file_path)
                 if assign:
                     assignments.append(assign)
@@ -135,19 +135,19 @@ class SignalExtractor:
 
     def _extract_one_assign(self, node, source_text: str, file_path: str) -> Optional[AssignmentInfo]:
         """提取单个 continuous_assign"""
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "list_of_net_assignments":
-                for j in range(child.child_count()):
+            if child.type == "list_of_net_assignments":
+                for j in range(child.child_count):
                     gc = child.child(j)
-                    if gc.kind() == "net_assignment":
+                    if gc.type == "net_assignment":
                         lhs = ""
                         rhs = ""
-                        for k in range(gc.child_count()):
+                        for k in range(gc.child_count):
                             ggc = gc.child(k)
-                            if ggc.kind() == "net_lvalue":
+                            if ggc.type == "net_lvalue":
                                 lhs = get_node_text(ggc, source_text)
-                            elif ggc.kind() == "expression":
+                            elif ggc.type == "expression":
                                 rhs = get_node_text(ggc, source_text)
                         if lhs:
                             return AssignmentInfo(
@@ -173,7 +173,7 @@ class SignalExtractor:
         loads_map: dict[str, list[LoadInfo]] = {}
 
         for child in iter_module_body_deep(module_body_node):
-            kind = child.kind()
+            kind = child.type
             if kind == "continuous_assign":
                 self._extract_assign_drivers_loads(child, source_text, file_path,
                                                    drivers_map, loads_map)
@@ -189,19 +189,19 @@ class SignalExtractor:
         from ..analysis.expr_walker import extract_signal_refs
         line = get_node_line(node)
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "list_of_net_assignments":
-                for j in range(child.child_count()):
+            if child.type == "list_of_net_assignments":
+                for j in range(child.child_count):
                     gc = child.child(j)
-                    if gc.kind() == "net_assignment":
+                    if gc.type == "net_assignment":
                         lhs = ""
                         rhs = ""
-                        for k in range(gc.child_count()):
+                        for k in range(gc.child_count):
                             ggc = gc.child(k)
-                            if ggc.kind() == "net_lvalue":
+                            if ggc.type == "net_lvalue":
                                 lhs = get_node_text(ggc, source_text)
-                            elif ggc.kind() == "expression":
+                            elif ggc.type == "expression":
                                 rhs = get_node_text(ggc, source_text)
                         if lhs:
                             driver_sigs = extract_signal_refs(lhs)
@@ -230,7 +230,7 @@ class SignalExtractor:
         def _has_for_ancestor(n, depth: int = 0) -> bool:
             if depth > 10:
                 return False
-            if n.kind() == "for_statement":
+            if n.type == "for_statement":
                 return True
             p = getattr(n, 'parent', None)
             if p is not None:
@@ -240,17 +240,17 @@ class SignalExtractor:
         def _walk_assignments(n, depth: int = 0):
             if depth > 40:
                 return
-            kind = n.kind()
+            kind = n.type
             if kind in ("nonblocking_assignment", "blocking_assignment"):
                 lhs = ""
                 rhs = ""
-                for idx in range(n.child_count()):
+                for idx in range(n.child_count):
                     c = n.child(idx)
-                    if c.kind() == "net_lvalue" or (c.kind() == "simple_identifier" and not lhs):
+                    if c.type == "net_lvalue" or (c.type == "simple_identifier" and not lhs):
                         lhs = get_node_text(c, source_text)
-                    elif c.kind() == "expression":
+                    elif c.type == "expression":
                         rhs = get_node_text(c, source_text)
-                    elif c.kind() == "simple_identifier" and not lhs:
+                    elif c.type == "simple_identifier" and not lhs:
                         lhs = get_node_text(c, source_text)
 
                 if lhs and not _has_for_ancestor(n):
@@ -272,9 +272,9 @@ class SignalExtractor:
                             loads_map.setdefault(sig, []).append(ld)
 
             elif kind == "if_statement":
-                for idx in range(n.child_count()):
+                for idx in range(n.child_count):
                     c = n.child(idx)
-                    if c.kind() in ("expression", "parenthesized_expression"):
+                    if c.type in ("expression", "parenthesized_expression"):
                         expr_text = get_node_text(c, source_text)
                         for sig in extract_signal_refs(expr_text):
                             ld = LoadInfo(
@@ -286,9 +286,9 @@ class SignalExtractor:
                         break
 
             elif kind in ("case_statement", "casez_statement", "casex_statement"):
-                for idx in range(n.child_count()):
+                for idx in range(n.child_count):
                     c = n.child(idx)
-                    if c.kind() in ("expression", "parenthesized_expression"):
+                    if c.type in ("expression", "parenthesized_expression"):
                         expr_text = get_node_text(c, source_text)
                         for sig in extract_signal_refs(expr_text):
                             ld = LoadInfo(
@@ -309,7 +309,7 @@ class SignalExtractor:
                     )
                     loads_map.setdefault(sig, []).append(ld)
 
-            for idx in range(n.child_count()):
+            for idx in range(n.child_count):
                 _walk_assignments(n.child(idx), depth + 1)
 
         _walk_assignments(node)
@@ -319,7 +319,7 @@ class SignalExtractor:
         blocks = []
 
         for child in iter_module_body_deep(module_body_node):
-            if child.kind() == "always_construct":
+            if child.type == "always_construct":
                 block = self._extract_always_block(child, source_text)
                 if block:
                     blocks.append(block)
@@ -333,13 +333,13 @@ class SignalExtractor:
         statements = []
         sv_keyword = ""
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
 
-            if child.kind() == "always_keyword":
+            if child.type == "always_keyword":
                 sv_keyword = get_node_text(child, source_text).strip()
 
-            elif child.kind() == "statement":
+            elif child.type == "statement":
                 sens = self._find_event_control(child, source_text)
                 if sens:
                     sensitivity = sens
@@ -372,9 +372,9 @@ class SignalExtractor:
         """递归查找 event_control 节点"""
         if depth > 8:
             return ""
-        if node.kind() == "event_control":
+        if node.type == "event_control":
             return get_node_text(node, source_text)
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             result = self._find_event_control(node.child(i), source_text, depth + 1)
             if result:
                 return result
@@ -399,7 +399,7 @@ class SignalExtractor:
             if depth > 30:
                 return
 
-            kind = n.kind()
+            kind = n.type
 
             if kind == "initial_construct":
                 is_tb = True
@@ -409,9 +409,9 @@ class SignalExtractor:
 
             elif kind == "system_tf_call":
                 name = ""
-                for i in range(n.child_count()):
+                for i in range(n.child_count):
                     c = n.child(i)
-                    if c.kind() == "system_tf_identifier":
+                    if c.type == "system_tf_identifier":
                         name = get_node_text(c, source_text)
                         break
                 if name in self._SYSTEM_TASKS:
@@ -429,7 +429,7 @@ class SignalExtractor:
                 if text.startswith("#"):
                     has_nonsynth = True
 
-            for i in range(n.child_count()):
+            for i in range(n.child_count):
                 _walk(n.child(i), depth + 1)
 
         _walk(module_body_node)

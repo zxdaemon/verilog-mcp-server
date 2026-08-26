@@ -36,8 +36,8 @@ class UvmHierarchyBuilder:
             return []
 
         # 收集所有 create/new 调用
-        create_calls = self._uvm_extractor.find_create_calls(tree.root_node(), source_text)
-        new_calls = self._uvm_extractor.find_new_calls(tree.root_node(), source_text)
+        create_calls = self._uvm_extractor.find_create_calls(tree.root_node, source_text)
+        new_calls = self._uvm_extractor.find_new_calls(tree.root_node, source_text)
 
         # 建立类名 → ClassDef 映射
         uvm_classes = {c.name: c for c in classes if c.is_uvm_component}

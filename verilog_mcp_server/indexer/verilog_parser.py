@@ -64,7 +64,7 @@ def parse_file(file_path: str) -> Optional[tuple[object, str]]:
 
         lang_name = get_language_name(str(path))
         parser = _get_parser(lang_name)
-        tree = parser.parse(source_text)
+        tree = parser.parse(source_text.encode("utf-8"))
 
         logger.debug(f"解析成功: {file_path} ({lang_name}, {len(source_text)} chars)")
         return tree, source_text
@@ -86,17 +86,25 @@ def parse_source(source_text: str, lang: str = "systemverilog") -> Optional[tupl
         (tree-sitter Tree, 源码文本) 元组
     """
     parser = _get_parser(lang)
-    tree = parser.parse(source_text)
+    tree = parser.parse(source_text.encode("utf-8"))
     return tree, source_text
 
 
 def get_node_text(node, source_text: str) -> str:
-    """获取 AST 节点对应的源码文本（兼容 v0.23+ tree-sitter API）"""
+    """获取 AST 节点对应的源码文本（兼容 v0.23+ tree-sitter API）
+
+    tree-sitter 的 byte_range 是 UTF-8 字节偏移；source_text 是 Python str
+    （字符索引）。对含多字节字符（中文注释等）的文件，直接按字节偏移切
+    str 会错位（每汉字 3 字节），产生错误模块名甚至伪模块。此处统一走
+    bytes 空间：encode 后按字节切片再 decode，ASCII 文件输出与旧实现
+    逐字节一致，多字节文件修复错位。
+    """
     if node is None:
         return ""
     try:
-        br = node.byte_range()
-        return source_text[br.start:br.end]
+        br = node.byte_range
+        source_bytes = source_text.encode("utf-8")
+        return source_bytes[br[0]:br[1]].decode("utf-8")
     except (AttributeError, TypeError, IndexError):
         return ""
 
@@ -109,7 +117,7 @@ def get_source_lines(source_text: str) -> list[str]:
 def get_node_line(node) -> int:
     """获取节点起始行号（1-indexed）"""
     try:
-        pos = node.start_position()
+        pos = node.start_point
         return pos.row + 1
     except (AttributeError, TypeError):
         return 0
@@ -118,7 +126,7 @@ def get_node_line(node) -> int:
 def get_node_line_end(node) -> int:
     """获取节点结束行号（1-indexed）"""
     try:
-        pos = node.end_position()
+        pos = node.end_point
         return pos.row + 1
     except (AttributeError, TypeError):
         return 0
@@ -126,16 +134,16 @@ def get_node_line_end(node) -> int:
 
 def for_each_child(node, callback):
     """遍历节点所有子节点"""
-    for i in range(node.child_count()):
+    for i in range(node.child_count):
         child = node.child(i)
         callback(child)
 
 
 def find_child(node, kind_name: str):
     """查找第一个指定 kind 的子节点"""
-    for i in range(node.child_count()):
+    for i in range(node.child_count):
         child = node.child(i)
-        if child.kind() == kind_name:
+        if child.type == kind_name:
             return child
     return None
 
@@ -143,19 +151,19 @@ def find_child(node, kind_name: str):
 def find_children(node, kind_name: str) -> list:
     """查找所有指定 kind 的子节点"""
     results = []
-    for i in range(node.child_count()):
+    for i in range(node.child_count):
         child = node.child(i)
-        if child.kind() == kind_name:
+        if child.type == kind_name:
             results.append(child)
     return results
 
 
 def iter_module_body(module_node):
     """遍历 module body 的所有语句，自动展开 module_item 包装（兼容非 ANSI 风格）"""
-    for i in range(module_node.child_count()):
+    for i in range(module_node.child_count):
         child = module_node.child(i)
-        if child.kind() == "module_item":
-            for j in range(child.child_count()):
+        if child.type == "module_item":
+            for j in range(child.child_count):
                 yield child.child(j)
         else:
             yield child
@@ -176,16 +184,16 @@ _GENERATE_KINDS = {"generate_construct", "generate_region",
 def _iter_with_generate(node, depth):
     if depth > 20:
         return
-    for i in range(node.child_count()):
+    for i in range(node.child_count):
         child = node.child(i)
-        if child.kind() == "module_item":
-            for j in range(child.child_count()):
+        if child.type == "module_item":
+            for j in range(child.child_count):
                 gc = child.child(j)
-                if gc.kind() in _GENERATE_KINDS:
+                if gc.type in _GENERATE_KINDS:
                     yield from _iter_with_generate(gc, depth + 1)
                 else:
                     yield gc
-        elif child.kind() in _GENERATE_KINDS:
+        elif child.type in _GENERATE_KINDS:
             yield from _iter_with_generate(child, depth + 1)
         else:
             yield child
@@ -201,9 +209,9 @@ def recursive_find(node, kind_name: str, max_depth: int = 20) -> list:
 def _recursive_find(node, kind_name: str, results: list, depth: int, max_depth: int):
     if depth > max_depth:
         return
-    if node.kind() == kind_name:
+    if node.type == kind_name:
         results.append(node)
-    for i in range(node.child_count()):
+    for i in range(node.child_count):
         child = node.child(i)
         _recursive_find(child, kind_name, results, depth + 1, max_depth)
 

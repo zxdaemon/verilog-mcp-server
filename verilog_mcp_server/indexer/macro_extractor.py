@@ -17,11 +17,11 @@ class MacroExtractor:
     def extract_defines(self, tree, source_text: str, file_path: str) -> list[MacroDef]:
         """从 source_file 提取所有 `define 宏定义"""
         defines = []
-        root = tree.root_node()
+        root = tree.root_node
 
-        for i in range(root.child_count()):
+        for i in range(root.child_count):
             child = root.child(i)
-            if child.kind() == "text_macro_definition":
+            if child.type == "text_macro_definition":
                 md = self._parse_define(child, source_text, file_path)
                 if md:
                     defines.append(md)
@@ -30,21 +30,21 @@ class MacroExtractor:
 
     def extract_conditionals(self, tree, source_text: str) -> list[ConditionalBranch]:
         """从 source_file 提取条件编译分支结构"""
-        root = tree.root_node()
+        root = tree.root_node
         branches = []
         stack: list[ConditionalBranch] = []
 
-        for i in range(root.child_count()):
+        for i in range(root.child_count):
             child = root.child(i)
-            if child.kind() != "conditional_compilation_directive":
+            if child.type != "conditional_compilation_directive":
                 continue
 
-            first_child = child.child(0) if child.child_count() > 0 else None
+            first_child = child.child(0) if child.child_count > 0 else None
             if first_child is None:
                 continue
 
-            kind = first_child.kind()
-            line = child.start_position().row + 1
+            kind = first_child.type
+            line = child.start_point.row + 1
 
             if kind in ("`ifdef", "`ifndef"):
                 branch_type = "ifdef" if kind == "`ifdef" else "ifndef"
@@ -92,24 +92,24 @@ class MacroExtractor:
     @staticmethod
     def _extract_ifdef_condition(node, source_text: str) -> str:
         """从 conditional_compilation_directive 提取 ifdef/ifndef 条件"""
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             c = node.child(i)
-            if c.kind() == "ifdef_condition":
-                for j in range(c.child_count()):
+            if c.type == "ifdef_condition":
+                for j in range(c.child_count):
                     gc = c.child(j)
-                    if gc.kind() == "simple_identifier":
+                    if gc.type == "simple_identifier":
                         return get_node_text(gc, source_text)
         return ""
 
     @staticmethod
     def _extract_elsif_condition(node, source_text: str) -> str:
         """从 conditional_compilation_directive 提取 elsif 条件"""
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             c = node.child(i)
-            if c.kind() == "elsif_condition":
-                for j in range(c.child_count()):
+            if c.type == "elsif_condition":
+                for j in range(c.child_count):
                     gc = c.child(j)
-                    if gc.kind() == "simple_identifier":
+                    if gc.type == "simple_identifier":
                         return get_node_text(gc, source_text)
         return ""
 
@@ -120,15 +120,15 @@ class MacroExtractor:
         def _walk(n, depth=0):
             if depth > 12:
                 return
-            if n.kind() == "text_macro_usage":
-                for i in range(n.child_count()):
+            if n.type == "text_macro_usage":
+                for i in range(n.child_count):
                     c = n.child(i)
-                    if c.kind() == "simple_identifier":
+                    if c.type == "simple_identifier":
                         name = get_node_text(c, source_text)
-                        line = n.start_position().row + 1
+                        line = n.start_point.row + 1
                         usages.append({"name": name, "line": line})
                         break
-            for i in range(n.child_count()):
+            for i in range(n.child_count):
                 _walk(n.child(i), depth + 1)
 
         _walk(module_node)
@@ -140,26 +140,26 @@ class MacroExtractor:
         params = []
         value = ""
 
-        for i in range(node.child_count()):
+        for i in range(node.child_count):
             child = node.child(i)
-            if child.kind() == "text_macro_name":
-                for j in range(child.child_count()):
+            if child.type == "text_macro_name":
+                for j in range(child.child_count):
                     gc = child.child(j)
-                    if gc.kind() == "simple_identifier":
+                    if gc.type == "simple_identifier":
                         name = get_node_text(gc, source_text)
-                    elif gc.kind() == "list_of_formal_arguments":
-                        for k in range(gc.child_count()):
+                    elif gc.type == "list_of_formal_arguments":
+                        for k in range(gc.child_count):
                             arg = gc.child(k)
-                            if arg.kind() == "formal_argument":
-                                for m in range(arg.child_count()):
+                            if arg.type == "formal_argument":
+                                for m in range(arg.child_count):
                                     am = arg.child(m)
-                                    if am.kind() == "simple_identifier":
+                                    if am.type == "simple_identifier":
                                         params.append(get_node_text(am, source_text))
-            elif child.kind() == "macro_text":
+            elif child.type == "macro_text":
                 value = get_node_text(child, source_text).strip()
 
         if name:
-            line = node.start_position().row + 1
+            line = node.start_point.row + 1
             return MacroDef(name=name, params=params, value=value,
                             file_path=file_path, line=line)
         return None

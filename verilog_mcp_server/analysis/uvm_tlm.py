@@ -25,7 +25,7 @@ class UvmTlmAnalyzer:
             list[UvmTlmPortDef]: 带连接关系的 TLM 端口定义
         """
         ports: list[UvmTlmPortDef] = []
-        root_node = tree.root_node()
+        root_node = tree.root_node
 
         # 1. 查找 TLM 端口声明
         port_decls = self._extractor.find_tlm_port_declarations(root_node, source_text)
