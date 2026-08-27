@@ -19,6 +19,7 @@ LANGUAGE_MAP = {
     ".v": "systemverilog",
     ".sv": "systemverilog",
     ".svh": "systemverilog",
+    ".vh": "systemverilog",
 }
 
 # 缓存已加载的 parser
