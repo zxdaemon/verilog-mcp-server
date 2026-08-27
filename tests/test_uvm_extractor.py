@@ -17,7 +17,8 @@ def extractor():
 
 
 def parse(parser, src: str):
-    return parser.parse(src)
+    # tree-sitter 0.25 要求 bytes；str 直传抛 TypeError
+    return parser.parse(src.encode("utf-8"))
 
 
 class TestCreateCalls:
@@ -28,7 +29,7 @@ function void build_phase(uvm_phase phase);
 endfunction
 """
         tree = parse(parser, src)
-        calls = extractor.find_create_calls(tree.root_node(), src)
+        calls = extractor.find_create_calls(tree.root_node, src)
         assert len(calls) >= 1
         assert calls[0]["instance_name"] == "agt"
 
@@ -39,7 +40,7 @@ function void build_phase(uvm_phase phase);
 endfunction
 """
         tree = parse(parser, src)
-        calls = extractor.find_create_calls(tree.root_node(), src)
+        calls = extractor.find_create_calls(tree.root_node, src)
         assert len(calls) >= 1
         assert calls[0]["component_type"] == "my_driver"
 
@@ -52,7 +53,7 @@ function void build_phase(uvm_phase phase);
 endfunction
 """
         tree = parse(parser, src)
-        calls = extractor.find_config_db_calls(tree.root_node(), src)
+        calls = extractor.find_config_db_calls(tree.root_node, src)
         assert len(calls) >= 1
         assert calls[0]["operation"] == "set"
         assert calls[0]["field_name"] == "count"
@@ -65,7 +66,7 @@ function void build_phase(uvm_phase phase);
 endfunction
 """
         tree = parse(parser, src)
-        calls = extractor.find_config_db_calls(tree.root_node(), src)
+        calls = extractor.find_config_db_calls(tree.root_node, src)
         assert len(calls) >= 1
         assert calls[0]["operation"] == "get"
         assert calls[0]["field_name"] == "vif"
@@ -75,10 +76,10 @@ class TestTlmPortDeclarations:
     def test_tlm_analysis_port(self, parser, extractor):
         src = "class my_monitor extends uvm_monitor; uvm_analysis_port#(my_trans) mon_ap; endclass"
         tree = parse(parser, src)
-        root = tree.root_node()
+        root = tree.root_node
         # Find class_declaration node
-        for i in range(root.child_count()):
-            if root.child(i).kind() == "class_declaration":
+        for i in range(root.child_count):
+            if root.child(i).type == "class_declaration":
                 ports = extractor.find_tlm_port_declarations(root.child(i), src)
                 assert len(ports) >= 1
                 assert ports[0]["port_name"] == "mon_ap"
@@ -89,9 +90,9 @@ class TestTlmPortDeclarations:
     def test_tlm_blocking_put_port(self, parser, extractor):
         src = "class my_driver extends uvm_driver; uvm_blocking_put_port#(my_trans) put_port; endclass"
         tree = parse(parser, src)
-        root = tree.root_node()
-        for i in range(root.child_count()):
-            if root.child(i).kind() == "class_declaration":
+        root = tree.root_node
+        for i in range(root.child_count):
+            if root.child(i).type == "class_declaration":
                 ports = extractor.find_tlm_port_declarations(root.child(i), src)
                 assert len(ports) >= 1
                 assert ports[0]["port_type"] == "uvm_blocking_put_port"
@@ -107,7 +108,7 @@ function void connect_phase(uvm_phase phase);
 endfunction
 """
         tree = parse(parser, src)
-        connects = extractor.find_tlm_connections(tree.root_node(), src)
+        connects = extractor.find_tlm_connections(tree.root_node, src)
         assert len(connects) >= 1
         assert "connect" in connects[0]["source_port"]
         assert connects[0]["target_port"] == "sb.analysis_export"
@@ -121,6 +122,6 @@ function void build_phase(uvm_phase phase);
 endfunction
 """
         tree = parse(parser, src)
-        calls = extractor.find_new_calls(tree.root_node(), src)
+        calls = extractor.find_new_calls(tree.root_node, src)
         assert len(calls) >= 1
         assert calls[0]["instance_name"] == "comp"

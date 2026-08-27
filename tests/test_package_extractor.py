@@ -93,7 +93,7 @@ class TestImportExtraction:
     def test_wildcard_import(self):
         extractor = PackageExtractor()
         tree, src = parse_source(IMPORT_WILDCARD_SRC)
-        root = tree.root_node()
+        root = tree.root_node
         mod_node = root.child(0)
         imports = extractor.extract_imports_from_module(mod_node, src)
         assert len(imports) >= 1
@@ -105,7 +105,7 @@ class TestImportExtraction:
     def test_named_import(self):
         extractor = PackageExtractor()
         tree, src = parse_source(IMPORT_NAMED_SRC)
-        root = tree.root_node()
+        root = tree.root_node
         mod_node = root.child(0)
         imports = extractor.extract_imports_from_module(mod_node, src)
         assert len(imports) >= 1

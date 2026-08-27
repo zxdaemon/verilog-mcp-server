@@ -23,9 +23,9 @@ from verilog_mcp_server.database.models import (
 def _find_node(node, kind, depth=10):
     if depth < 0:
         return None
-    if node.kind() == kind:
+    if node.type == kind:
         return node
-    for i in range(node.child_count()):
+    for i in range(node.child_count):
         r = _find_node(node.child(i), kind, depth - 1)
         if r:
             return r
@@ -46,7 +46,7 @@ module foo(a, b, c, d);
 endmodule
 """
         tree, _ = parse_source(code)
-        mod = _find_node(tree.root_node(), "module_declaration")
+        mod = _find_node(tree.root_node, "module_declaration")
         ports = PortExtractor().extract_from_module(mod, code)
 
         assert len(ports) == 4
@@ -66,7 +66,7 @@ module bar(clk, result);
 endmodule
 """
         tree, _ = parse_source(code)
-        mod = _find_node(tree.root_node(), "module_declaration")
+        mod = _find_node(tree.root_node, "module_declaration")
         ports = PortExtractor().extract_from_module(mod, code)
         result = ports[1]
         assert result.signed == True
@@ -84,11 +84,11 @@ endmodule
         ext = PortExtractor()
 
         tree1, _ = parse_source(ansi_code)
-        mod1 = _find_node(tree1.root_node(), "module_declaration")
+        mod1 = _find_node(tree1.root_node, "module_declaration")
         ports1 = ext.extract_from_module(mod1, ansi_code)
 
         tree2, _ = parse_source(nonansi_code)
-        mod2 = _find_node(tree2.root_node(), "module_declaration")
+        mod2 = _find_node(tree2.root_node, "module_declaration")
         ports2 = ext.extract_from_module(mod2, nonansi_code)
 
         for p1, p2 in zip(ports1, ports2):
@@ -103,7 +103,7 @@ class TestPackageExtractor:
     def test_wildcard_import(self):
         code = "module m; import my_pkg::*; endmodule"
         tree, _ = parse_source(code)
-        mod = _find_node(tree.root_node(), "module_declaration")
+        mod = _find_node(tree.root_node, "module_declaration")
         imports = PackageExtractor().extract_imports_from_module(mod, code)
         assert len(imports) == 1
         assert imports[0].package == "my_pkg"
@@ -113,7 +113,7 @@ class TestPackageExtractor:
     def test_specific_symbol_import(self):
         code = "module m; import my_pkg::my_type; endmodule"
         tree, _ = parse_source(code)
-        mod = _find_node(tree.root_node(), "module_declaration")
+        mod = _find_node(tree.root_node, "module_declaration")
         imports = PackageExtractor().extract_imports_from_module(mod, code)
         assert len(imports) == 1
         assert imports[0].package == "my_pkg"
@@ -123,7 +123,7 @@ class TestPackageExtractor:
     def test_multiple_imports(self):
         code = "module m; import pkg_a::*; import pkg_b::helper; endmodule"
         tree, _ = parse_source(code)
-        mod = _find_node(tree.root_node(), "module_declaration")
+        mod = _find_node(tree.root_node, "module_declaration")
         imports = PackageExtractor().extract_imports_from_module(mod, code)
         assert len(imports) == 2
         assert imports[0].wildcard == True
@@ -157,7 +157,7 @@ module m(input clk, req, ack);
 endmodule
 """
         tree, _ = parse_source(code)
-        mod = _find_node(tree.root_node(), "module_declaration")
+        mod = _find_node(tree.root_node, "module_declaration")
         assertions = SvaExtractor().extract_from_module(mod, code)
         conc = [a for a in assertions if a.type == "concurrent"]
         assert len(conc) == 1
@@ -174,7 +174,7 @@ module m(input req, ack);
 endmodule
 """
         tree, _ = parse_source(code)
-        mod = _find_node(tree.root_node(), "module_declaration")
+        mod = _find_node(tree.root_node, "module_declaration")
         assertions = SvaExtractor().extract_from_module(mod, code)
         imm = [a for a in assertions if a.type == "immediate"]
         assert len(imm) == 1
@@ -190,7 +190,7 @@ module m;
 endmodule
 """
         tree, _ = parse_source(code)
-        mod = _find_node(tree.root_node(), "module_declaration")
+        mod = _find_node(tree.root_node, "module_declaration")
         assertions = SvaExtractor().extract_from_module(mod, code)
         seq = [a for a in assertions if a.type == "sequence"]
         assert len(seq) == 1
@@ -206,7 +206,7 @@ module m(input valid);
 endmodule
 """
         tree, _ = parse_source(code)
-        mod = _find_node(tree.root_node(), "module_declaration")
+        mod = _find_node(tree.root_node, "module_declaration")
         assertions = SvaExtractor().extract_from_module(mod, code)
         imm = [a for a in assertions if a.type == "immediate"]
         assert len(imm) == 1
@@ -265,7 +265,7 @@ module m;
 endmodule
 """
         tree, _ = parse_source(code)
-        mod = _find_node(tree.root_node(), "module_declaration")
+        mod = _find_node(tree.root_node, "module_declaration")
         usages = MacroExtractor().extract_macro_usages(mod, code)
         assert any(u["name"] == "WIDTH" for u in usages)
 
@@ -328,7 +328,7 @@ class TestTestbenchDetection:
     def test_rtl_module(self):
         code = "module m(input clk); wire a; assign a = clk; endmodule"
         tree, _ = parse_source(code)
-        mod = _find_node(tree.root_node(), "module_declaration")
+        mod = _find_node(tree.root_node, "module_declaration")
         is_tb, has_ns = SignalExtractor().detect_testbench(mod, code)
         assert not is_tb
         assert not has_ns
@@ -336,14 +336,14 @@ class TestTestbenchDetection:
     def test_initial_block_is_testbench(self):
         code = "module tb; initial $display(\"hello\"); endmodule"
         tree, _ = parse_source(code)
-        mod = _find_node(tree.root_node(), "module_declaration")
+        mod = _find_node(tree.root_node, "module_declaration")
         is_tb, has_ns = SignalExtractor().detect_testbench(mod, code)
         assert is_tb
 
     def test_system_task_non_synth(self):
         code = "module m; always @(*) $display(\"x=%d\", x); endmodule"
         tree, _ = parse_source(code)
-        mod = _find_node(tree.root_node(), "module_declaration")
+        mod = _find_node(tree.root_node, "module_declaration")
         is_tb, has_ns = SignalExtractor().detect_testbench(mod, code)
         assert not is_tb
         assert has_ns
@@ -351,7 +351,7 @@ class TestTestbenchDetection:
     def test_delay_control_non_synth(self):
         code = "module m; always #5 clk = ~clk; endmodule"
         tree, _ = parse_source(code)
-        mod = _find_node(tree.root_node(), "module_declaration")
+        mod = _find_node(tree.root_node, "module_declaration")
         is_tb, has_ns = SignalExtractor().detect_testbench(mod, code)
         assert not is_tb
         assert has_ns
@@ -367,7 +367,7 @@ module m;
 endmodule
 """
         tree, _ = parse_source(code)
-        mod = _find_node(tree.root_node(), "module_declaration")
+        mod = _find_node(tree.root_node, "module_declaration")
         is_tb, has_ns = SignalExtractor().detect_testbench(mod, code)
         assert not is_tb
         assert has_ns

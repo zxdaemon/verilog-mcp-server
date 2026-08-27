@@ -27,10 +27,10 @@ def test_extract_instances():
     tree, src = parse_source(MODULE_WITH_INSTANCES)
 
     # Find module_declaration node from source_file root
-    root = tree.root_node()
+    root = tree.root_node
     module_node = None
-    for i in range(root.child_count()):
-        if root.child(i).kind() == "module_declaration":
+    for i in range(root.child_count):
+        if root.child(i).type == "module_declaration":
             module_node = root.child(i)
             break
     assert module_node is not None
@@ -45,9 +45,9 @@ def test_extract_instances():
 
 def _get_module_node(tree):
     """Helper: find module_declaration node from source_file tree"""
-    root = tree.root_node()
-    for i in range(root.child_count()):
-        if root.child(i).kind() == "module_declaration":
+    root = tree.root_node
+    for i in range(root.child_count):
+        if root.child(i).type == "module_declaration":
             return root.child(i)
     return None
 
