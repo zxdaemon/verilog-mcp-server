@@ -6,10 +6,10 @@ from verilog_mcp_server.indexer.instance_extractor import InstanceExtractor
 
 
 def _find_module_node(tree, src):
-    root = tree.root_node()
-    for i in range(root.child_count()):
+    root = tree.root_node
+    for i in range(root.child_count):
         c = root.child(i)
-        if c.kind() == "module_declaration":
+        if c.type == "module_declaration":
             return c
     return root
 

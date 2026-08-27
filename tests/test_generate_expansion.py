@@ -7,10 +7,10 @@ from verilog_mcp_server.indexer.signal_extractor import SignalExtractor
 
 
 def _find_module_node(tree, src):
-    root = tree.root_node()
-    for i in range(root.child_count()):
+    root = tree.root_node
+    for i in range(root.child_count):
         c = root.child(i)
-        if c.kind() == "module_declaration":
+        if c.type == "module_declaration":
             return c
     return root
 
@@ -78,7 +78,7 @@ class TestForGenerate:
         mod = _find_module_node(tree, src)
         instances_in_gen = False
         for child in iter_module_body_deep(mod):
-            if child.kind() in ("module_instantiation", "gate_instantiation"):
+            if child.type in ("module_instantiation", "gate_instantiation"):
                 instances_in_gen = True
         assert instances_in_gen
 
@@ -97,7 +97,7 @@ class TestIfGenerate:
         mod = _find_module_node(tree, src)
         nodes_in_gen = False
         for child in iter_module_body_deep(mod):
-            if child.kind() in ("data_declaration", "continuous_assign", "module_item"):
+            if child.type in ("data_declaration", "continuous_assign", "module_item"):
                 nodes_in_gen = True
         # iter_module_body_deep may not reach data_declaration inside if_generate
         # depending on tree-sitter version, so check that at least generate structure is present
