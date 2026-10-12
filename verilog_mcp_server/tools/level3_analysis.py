@@ -61,6 +61,17 @@ def register_tools(mcp: "FastMCP", index_store: "IndexStore"):
             lines.append(fsm.to_text())
             lines.append("")
 
+        # 宽松候选段（未定性，交人工/LLM 甄别；case 序列器等漏报形态的兜底）
+        if result.relaxed_candidates:
+            lines.append(
+                f"**宽松候选**（case 表达式 ∧ 时序块赋值目标，未定性 "
+                f"{len(result.relaxed_candidates)} 个）:"
+            )
+            lines.append("  " + ", ".join(result.relaxed_candidates))
+
+        if not result.fsms and not result.relaxed_candidates:
+            return f"ℹ️ 模块 `{module_name}` 未检测到有限状态机"
+
         return "\n".join(lines)
 
     @mcp.tool()

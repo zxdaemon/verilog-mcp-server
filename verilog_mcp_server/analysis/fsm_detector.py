@@ -65,6 +65,7 @@ class FSMResult:
     """FSM 检测结果"""
     fsm_count: int = 0
     fsms: list[FSM] = field(default_factory=list)
+    relaxed_candidates: list[str] = field(default_factory=list)
 
 
 # ── FSM 检测器 ──
@@ -118,7 +119,40 @@ class FSMDetector:
                 fsms.append(fsm)
                 seen_regs.add(fsm.state_register)
 
-        return FSMResult(fsm_count=len(fsms), fsms=fsms)
+        # 方法3: 宽松候选模式（不承诺定性，交人工/LLM 甄别）
+        # case 表达式信号 ∧ 时序块赋值目标——覆盖 case(state) 在时序块（一段式）、
+        # case(next_state) 在组合块（两段式）、非 state 命名的序列器等漏报形态
+        relaxed = self._find_relaxed_candidates(mod, seen_regs)
+
+        return FSMResult(fsm_count=len(fsms), fsms=fsms, relaxed_candidates=relaxed)
+
+    def _find_relaxed_candidates(self, mod: ModuleDef, seen_regs: set[str]) -> list[str]:
+        """宽松候选：case 表达式 = 时序块赋值目标的信号（纯 DB 数据，不做定性）
+
+        数据源为已索引的 always_blocks.statements 文本：
+        - case 表达式从全部块文本提取（case 可能落在时序块或组合块）
+        - 赋值目标判定限时序块文本（非阻塞 <= / 阻塞 = 均算）
+        已被方法 1/2 识别的寄存器不重复报告。
+        """
+        seq_texts, all_texts = [], []
+        for ab in (mod.always_blocks or []):
+            text = self._get_block_text(ab)
+            if not text:
+                continue
+            all_texts.append(text)
+            if ab.block_type == "sequential":
+                seq_texts.append(text)
+        if not seq_texts or not all_texts:
+            return []
+
+        seq_text = "\n".join(seq_texts)
+        candidates: set[str] = set()
+        for expr in re.findall(r'\bcase[zx]?\s*\(\s*(\w+)\s*\)', "\n".join(all_texts)):
+            if expr in seen_regs:
+                continue
+            if re.search(rf'\b{re.escape(expr)}\s*(<=|=[^=])', seq_text):
+                candidates.add(expr)
+        return sorted(candidates)
 
     # ── 辅助方法 ──
 
