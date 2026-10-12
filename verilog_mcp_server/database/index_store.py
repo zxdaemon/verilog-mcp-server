@@ -6,6 +6,7 @@ from __future__ import annotations
 import bisect
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any, Optional
 
@@ -278,7 +279,24 @@ class IndexStore:
     # ── Search Operations ──
 
     def search_modules(self, pattern: str) -> list[ModuleDef]:
-        """模糊搜索模块名（大小写不敏感，不触发全量加载）"""
+        """搜索模块名，支持三种模式（大小写不敏感）
+
+        - 普通子串：模糊匹配（现状语义）
+        - 空串或 "*"：全量模块清单（名称+文件+端口数，VMS-07）
+        - "re:<regex>"：正则匹配
+        """
+        if not pattern or pattern == "*":
+            return sorted(self.get_all_modules(), key=lambda m: m.name.lower())
+        if pattern.startswith("re:"):
+            try:
+                rx = re.compile(pattern[3:], re.IGNORECASE)
+            except re.error:
+                return []
+            mods = self.get_all_modules() if self._db else [
+                self._ensure_loaded(n) for n in self._meta
+            ]
+            return sorted((m for m in mods if m and rx.search(m.name)),
+                          key=lambda m: m.name.lower())
         if self._db:
             return self._db.search_modules(pattern.lower())
         pattern_lower = pattern.lower()

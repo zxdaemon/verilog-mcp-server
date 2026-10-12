@@ -157,9 +157,9 @@ class InstanceExtractor:
         # 简单解析 #(param1=val1, param2=val2)
         inner = text.strip()
         if inner.startswith("#"):
-            inner = inner[1:]
+            inner = inner[1:].strip()  # strip: 多行格式 # 与 ( 之间有换行
         if inner.startswith("(") and inner.endswith(")"):
-            inner = inner[1:-1]
+            inner = inner[1:-1].strip()
 
         # 按逗号分割（考虑嵌套括号）
         items = []

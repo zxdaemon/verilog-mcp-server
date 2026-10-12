@@ -173,17 +173,21 @@ def register_tools(mcp, index_store: IndexStore):
     @mcp.tool()
     def rtl_search_module(pattern: str) -> str:
         """
-        模糊搜索模块定义
+        搜索模块定义，支持三种模式（VMS-07 全量清单口径）
 
         Args:
-            pattern: 模块名搜索模式（大小写不敏感，支持部分匹配）
+            pattern: 搜索模式——
+              普通子串：模糊匹配（大小写不敏感）
+              空串或 "*"：全量模块清单（名称+文件+端口数）
+              "re:<regex>"：正则匹配
 
         Returns:
             匹配的模块列表（名称、文件路径、端口数）
         """
         results = _do_search_module(index_store, pattern)
         if not results:
-            return f"未找到匹配 '{pattern}' 的模块"
+            mode = "全量清单" if (not pattern or pattern == "*") else f"'{pattern}'"
+            return f"未找到匹配 {mode} 的模块"
         return _fmt_search_module_results(results)
 
     @mcp.tool()

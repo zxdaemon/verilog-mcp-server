@@ -160,23 +160,46 @@ def register_tools(mcp, index_store: IndexStore):
         return "\n".join(lines)
 
     @mcp.tool()
-    def rtl_elab_instances(module_name: str | None = None) -> str:
+    def rtl_elab_instances(module_name: str | None = None, group_by_type: bool = False,
+                           limit: int = 0, offset: int = 0) -> str:
         """
         获取 pyslang elaboration 后的实例列表
 
         Args:
             module_name: 可选，限定模块类型。为 None 时返回所有实例。
+            group_by_type: 为 True 时输出模块类型→实例计数聚合表（大输出免落盘）
+            limit: 分页大小，0 = 不限
+            offset: 分页起点
 
         Returns:
-            elaborated 实例列表（含层次路径和 generate 信息）
+            elaborated 实例列表（含层次路径和 generate 信息），或聚合计数表
         """
         instances = index_store.get_elab_instances(module_name)
         if not instances:
             scope = f"模块 '{module_name}'" if module_name else "全部"
             return f"未找到 {scope} 的 elaborated 实例数据"
 
-        lines = [f"找到 {len(instances)} 个 elaborated 实例:\n"]
-        for inst in instances:
+        total = len(instances)
+
+        # 聚合模式：类型 → 计数（VMS-10）
+        if group_by_type:
+            counts: dict[str, int] = {}
+            for inst in instances:
+                counts[inst.module_type] = counts.get(inst.module_type, 0) + 1
+            lines = [f"elaborated 实例聚合（共 {total} 个 / {len(counts)} 类型）:\n"]
+            for t, c in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])):
+                lines.append(f"  {t}: {c}")
+            return "\n".join(lines)
+
+        # 分页模式
+        if offset or limit:
+            page = instances[offset:offset + limit] if limit else instances[offset:]
+            tail = f"\n\n[显示 {len(page)}/{total}（offset={offset}, limit={limit or '∞'}）]"
+        else:
+            page, tail = instances, ""
+
+        lines = [f"找到 {total} 个 elaborated 实例:\n"]
+        for inst in page:
             gen_marker = " [generate]" if inst.is_generated else ""
             lines.append(f"### {inst.hierarchical_path}{gen_marker}")
             lines.append(f"  实例名: {inst.instance_name}")
@@ -187,7 +210,7 @@ def register_tools(mcp, index_store: IndexStore):
                 lines.append(f"  generate 条件: {inst.generate_condition}")
             lines.append("")
 
-        return "\n".join(lines)
+        return "\n".join(lines) + tail
 
     @mcp.tool()
     def rtl_resolved_signals(module_name: str) -> str:
