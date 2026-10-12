@@ -86,6 +86,11 @@ CREATE TABLE IF NOT EXISTS file_meta (
     sha256 TEXT
 );
 
+CREATE TABLE IF NOT EXISTS index_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_signal_name ON signal_index(signal_name);
 CREATE INDEX IF NOT EXISTS idx_modules_file_path ON modules(file_path);
 
@@ -485,6 +490,20 @@ class SQLiteBackend:
         cur = self._conn.execute("SELECT file_path, mtime, sha256 FROM file_meta")
         return {row[0]: {"mtime": row[1], "sha256": row[2]} for row in cur.fetchall()}
 
+    # ── Index Meta (kv) Operations ──
+
+    def set_index_meta(self, key: str, value: str) -> None:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO index_meta (key, value) VALUES (?, ?)",
+            (key, value),
+        )
+        self._conn.commit()
+
+    def get_index_meta(self, key: str) -> Optional[str]:
+        cur = self._conn.execute("SELECT value FROM index_meta WHERE key = ?", (key,))
+        row = cur.fetchone()
+        return row[0] if row else None
+
     # ── Bulk Operations ──
 
     def clear_all(self) -> None:
@@ -533,6 +552,11 @@ class SQLiteBackend:
     def get_all_elaborated_instances(self) -> list[ElaboratedInstanceDef]:
         cur = self._conn.execute("SELECT * FROM elaborated_instances")
         return [_row_to_elab_instance(_row_to_dict(r)) for r in cur.fetchall()]
+
+    def get_elab_module_types(self) -> list[str]:
+        """获取所有 elaborated 实例的去重模块类型集合"""
+        cur = self._conn.execute("SELECT DISTINCT module_type FROM elaborated_instances")
+        return [row[0] for row in cur.fetchall() if row[0]]
 
     def clear_elaborated_instances(self) -> None:
         self._conn.execute("DELETE FROM elaborated_instances")

@@ -244,6 +244,37 @@ class IndexStore:
     def module_count(self) -> int:
         return len(self._meta)
 
+    # ── Index Meta (kv) Operations ──
+
+    def set_build_filelist(self, files: list[str]) -> None:
+        """记录本次 build 的文件全集（排除文件告警的数据源）"""
+        if self._db:
+            self._db.set_index_meta("build_filelist", json.dumps(files, ensure_ascii=False))
+
+    def get_build_filelist(self) -> Optional[list[str]]:
+        """获取最近一次 build 的文件全集；旧索引无记录时返回 None"""
+        if not self._db:
+            return None
+        raw = self._db.get_index_meta("build_filelist")
+        if not raw:
+            return None
+        try:
+            return json.loads(raw)
+        except (ValueError, TypeError):
+            return None
+
+    def get_all_indexed_files(self) -> set[str]:
+        """获取已索引文件全集（file_meta 键集，含无模块声明的辅助文件）"""
+        if not self._db:
+            return set()
+        return set(self._db.get_all_file_metas().keys())
+
+    def get_elab_module_types(self) -> list[str]:
+        """获取 elaborated 实例的去重模块类型集合"""
+        if not self._db:
+            return []
+        return self._db.get_elab_module_types()
+
     # ── Search Operations ──
 
     def search_modules(self, pattern: str) -> list[ModuleDef]:

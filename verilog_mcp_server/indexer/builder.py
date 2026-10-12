@@ -62,6 +62,8 @@ class IndexBuilder:
         self.index_store.clear()
 
         files, filelist_incdirs, filelist_defines = self.scanner.scan()
+        # 记录本次 build 的文件全集（index_status 排除文件告警的数据源）
+        self.index_store.set_build_filelist([str(f) for f in files])
         total_files = len(files)
         parsed_count = 0
         module_count = 0
@@ -262,6 +264,10 @@ class IndexBuilder:
             changed_files: 指定要重新解析的文件列表。为 None 时自动检测变更。
         """
         logger.info("开始增量构建索引...")
+
+        # 刷新本次 build 的文件全集（文件集可能因 filelist/目录变化而变）
+        scanned_all, _, _ = self.scanner.scan()
+        self.index_store.set_build_filelist([str(f) for f in scanned_all])
 
         if not changed_files:
             changed_files = self._detect_changed_files()

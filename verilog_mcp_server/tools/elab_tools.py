@@ -74,6 +74,79 @@ def register_tools(mcp, index_store: IndexStore):
             if len(report.diagnostics) > 20:
                 lines.append(f"  ... 还有 {len(report.diagnostics) - 20} 条诊断")
 
+        # ── 缺席模块报告：声明集 − elab 类型集（VMS-02）──
+        ts_modules = index_store.get_all_modules()
+        elab_types = set(index_store.get_elab_module_types())
+        missing = sorted({m.name for m in ts_modules} - elab_types)
+        if not elab_types:
+            lines.append("\n**缺席模块报告**: elab 无实例数据，不可用")
+        elif missing:
+            # 引用判据：tree-sitter 实例条目中出现过的类型
+            # （generate-case 块内例化不在收集器内——高危清单是「已例化」下界）
+            referenced_types: set[str] = set()
+            for m in ts_modules:
+                for inst in m.instances:
+                    if inst.module_type:
+                        referenced_types.add(inst.module_type.lower())
+            high_risk = [n for n in missing if n.lower() in referenced_types]
+            orphans = [n for n in missing if n.lower() not in referenced_types]
+
+            # 每文件首个 error 诊断（首错定位）
+            # 诊断 location 的文件部分可能是绝对/相对（pyslang proximate path）形态，
+            # 匹配按 路径尾 → 文件名 两级宽松归一
+            file_first_error: dict[str, tuple[str, str]] = {}
+            for d in (report.diagnostics or []):
+                if not d.get("is_error"):
+                    continue
+                loc = d.get("location", "") or ""
+                fpath = loc.rsplit(":", 2)[0] if loc.count(":") >= 2 else loc
+                if fpath and fpath not in file_first_error:
+                    file_first_error[fpath] = (loc, d.get("message", ""))
+
+            import os as _os
+
+            def _match_first_error(decl_fp: str):
+                """按声明文件匹配首个 error：精确尾匹配 → 同名文件兜底"""
+                if not decl_fp or not file_first_error:
+                    return None
+                for f, err in file_first_error.items():
+                    if f == decl_fp or f.endswith(decl_fp) or decl_fp.endswith(f):
+                        return err
+                base = _os.path.basename(decl_fp)
+                for f, err in file_first_error.items():
+                    if _os.path.basename(f) == base:
+                        return err
+                return None
+
+            declared_file = {m.name: (m.file_path or "") for m in ts_modules}
+            lines.append(
+                f"\n**缺席模块报告**（声明 {len(ts_modules)} − elab 类型 {len(elab_types)}"
+                f" = 缺席 {len(missing)}；已例化无踪(高危) {len(high_risk)} / 未被引用 {len(orphans)}）"
+            )
+            lines.append(
+                "  口径注: 引用判据取自 tree-sitter 实例条目（generate-case 块内例化"
+                "不在收集器内），高危清单为「已例化」下界"
+            )
+            if high_risk:
+                lines.append("  ⚠ 高危（已例化但 elab 无踪——elab 层结论对其静默缺失）:")
+                for name in high_risk[:30]:
+                    fp = declared_file.get(name, "")
+                    err = _match_first_error(fp)
+                    if err:
+                        loc, msg = err
+                        msg_short = (msg[:80] + "...") if len(msg) > 80 else msg
+                        lines.append(f"    - {name}  [{fp}]  首错: {loc} {msg_short}")
+                    else:
+                        lines.append(f"    - {name}  [{fp}]  首错: 无定位")
+                if len(high_risk) > 30:
+                    lines.append(f"    ... 还有 {len(high_risk) - 30} 个")
+            if orphans:
+                sample = ", ".join(orphans[:10])
+                tail = f" ... 等 {len(orphans)} 个" if len(orphans) > 10 else ""
+                lines.append(f"  未被引用例举（孤儿/死代码，正常态）: {sample}{tail}")
+        else:
+            lines.append("\n✅ 缺席模块检查: 声明模块全部 elab 在踪")
+
         # 层次概览
         if report.hierarchy:
             lines.append(f"\n**层次概览**:")

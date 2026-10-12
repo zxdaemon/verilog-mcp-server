@@ -168,10 +168,18 @@ class PyslangParser:
             try:
                 loc = diag.location
                 loc_str = ""
-                if loc:
+                if loc and loc != pyslang.SourceLocation.NoLocation:
+                    # 0.25 API: SourceLocation 只有 buffer/offset，
+                    # 文件名/行号经 SourceManager 换算（宏展开点回溯原始文件位置）
                     try:
-                        loc_str = f"{loc.bufferName}:{loc.line}:{loc.column}"
-                    except AttributeError:
+                        sm = compilation.sourceManager
+                        fully = sm.getFullyOriginalLoc(loc)
+                        fname = sm.getFileName(fully)
+                        line = sm.getLineNumber(fully)
+                        col = sm.getColumnNumber(fully)
+                        if fname:
+                            loc_str = f"{fname}:{line}:{col}"
+                    except Exception:
                         loc_str = str(loc)
 
                 msg = engine.getMessage(diag.code)

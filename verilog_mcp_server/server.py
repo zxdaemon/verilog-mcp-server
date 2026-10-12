@@ -9,6 +9,7 @@ Verilog/SystemVerilog RTL 代码语义分析 MCP Server
 from __future__ import annotations
 import argparse
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -215,7 +216,17 @@ def create_app(config: dict) -> FastMCP:
     def rtl_index_status() -> str:
         """
         查看当前索引状态（模块数、文件数等）
-        
+
+        统计口径（各字段语义，防止跨口径误对账）：
+        - 模块总数: tree-sitter 索引到的模块声明数（≠ elab 数、≠ 文件数）
+        - 文件总数: 含模块声明的已索引文件数（define/timescale 等无模块
+          声明的辅助文件不计入）
+        - 例化总数: Σ 各模块 instances 条目数。三特征：① 实例数组计 1 条；
+          ② 含 module_type 不在索引内的实例（外部库单元/门原语等）；
+          ③ 不含 generate-case 块内例化。因此 ≠ 静态例化语句数，也 ≠
+          elab 实例数；跨口径对账前请先交叉验证。
+        - 端口/信号总数: tree-sitter 声明面计数
+
         Returns:
             索引统计信息
         """
@@ -246,6 +257,30 @@ def create_app(config: dict) -> FastMCP:
             f"- 例化总数: {total_instances}",
             f"- 语言分布: {', '.join(f'{k}: {v}' for k, v in lang_count.items())}",
         ]
+
+        # 排除文件告警：build 文件全集 − 已索引文件集（file_meta 键集）
+        build_files = index_store.get_build_filelist()
+        if build_files is None:
+            lines.append(
+                "\n⚠ 排除文件检查: 本索引无 build 文件清单记录（旧版构建），重建索引后此检查可用"
+            )
+        else:
+            indexed_files = index_store.get_all_indexed_files()
+            build_set = {os.path.normpath(str(f)) for f in build_files}
+            indexed_set = {os.path.normpath(str(f)) for f in indexed_files}
+            excluded = sorted(build_set - indexed_set)
+            if excluded:
+                lines.append(
+                    f"\n⚠ **排除文件告警**: {len(excluded)} 个文件在构建清单中但未入索引"
+                    f"（清单 {len(build_set)} − 已索引 {len(indexed_set)}）:"
+                )
+                for f in excluded[:20]:
+                    lines.append(f"  - {f}")
+                if len(excluded) > 20:
+                    lines.append(f"  ... 还有 {len(excluded) - 20} 个（排除文件内的类型实例条目仍会计入例化总数，但类型无法解析）")
+            else:
+                lines.append("\n✅ 排除文件检查: 构建清单内文件全部入索引")
+
         return "\n".join(lines)
 
     # 将 index_store 暴露为工具可访问的属性
