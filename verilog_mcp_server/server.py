@@ -223,8 +223,9 @@ def create_app(config: dict) -> FastMCP:
           声明的辅助文件不计入）
         - 例化总数: Σ 各模块 instances 条目数。三特征：① 实例数组计 1 条；
           ② 含 module_type 不在索引内的实例（外部库单元/门原语等）；
-          ③ 不含 generate-case 块内例化。因此 ≠ 静态例化语句数，也 ≠
-          elab 实例数；跨口径对账前请先交叉验证。
+          ③ generate-case 块内例化自 2026-10-13 修复起已收集（此前版本
+          缺失）。因此 ≠ 静态例化语句数，也 ≠ elab 实例数；跨口径对账
+          前请先交叉验证。
         - 端口/信号总数: tree-sitter 声明面计数
 
         Returns:

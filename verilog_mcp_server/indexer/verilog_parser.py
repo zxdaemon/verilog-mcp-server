@@ -179,7 +179,8 @@ def iter_module_body_deep(module_node):
 _GENERATE_KINDS = {"generate_construct", "generate_region",
                    "conditional_generate_construct",
                    "loop_generate_construct", "generate_block",
-                   "if_generate_construct", "case_generate_construct"}
+                   "if_generate_construct", "case_generate_construct",
+                   "case_generate_item"}
 
 
 def _iter_with_generate(node, depth):
