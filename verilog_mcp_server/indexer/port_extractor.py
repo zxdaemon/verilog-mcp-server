@@ -116,16 +116,16 @@ class PortExtractor:
 
     def _parse_nonansi_decl(self, decl_node, source_text: str) -> tuple:
         """从 input/output/inout/data_declaration 节点提取 width, var_type, signed"""
-        width_range = None
+        packed_dims: list[str] = []  # VMS-06①：多 packed 维度按序收集拼接，单值覆盖丢第一维
         var_type = ""
         signed = False
 
         def _search(n, depth=0):
-            nonlocal width_range, var_type, signed
+            nonlocal var_type, signed
             if depth > 6:
                 return
             if n.type == "packed_dimension":
-                width_range = get_node_text(n, source_text)
+                packed_dims.append(get_node_text(n, source_text).strip())
             elif n.type in ("wire", "reg", "logic", "integer"):
                 var_type = n.type
             elif n.type == "signed":
@@ -134,6 +134,7 @@ class PortExtractor:
                 _search(n.child(ci), depth + 1)
 
         _search(decl_node)
+        width_range = "".join(packed_dims) if packed_dims else None
         return width_range, var_type, signed
 
     def _collect_nonansi_ident_names(self, node, source_text: str) -> list[str]:
@@ -270,6 +271,7 @@ class PortExtractor:
         direction = "inout"
         var_type = ""
         width_range = None
+        header_dims: list[str] = []  # VMS-06①：直挂 packed_dimension 按序收集
         signed = False
 
         for i in range(header_node.child_count):
@@ -298,50 +300,55 @@ class PortExtractor:
             elif child.type in ("wire", "reg", "logic", "integer"):
                 var_type = child.type
 
-            # 直接 packed_dimension
+            # 直接 packed_dimension（VMS-06①：多维度直挂时按序收集，单值覆盖丢第一维）
             elif child.type == "packed_dimension":
-                width_range = get_node_text(child, source_text)
+                header_dims.append(get_node_text(child, source_text).strip())
 
             elif child.type == "signed":
                 signed = True
+
+        if header_dims:
+            width_range = "".join(header_dims)
 
         return direction, var_type, width_range, signed
 
     def _parse_port_type(self, node, source_text: str) -> tuple[Optional[str], bool]:
         """解析 net_port_type 节点，递归查找 packed_dimension"""
-        width_range = None
+        packed_dims: list[str] = []  # VMS-06①：多 packed 维度按序收集
         signed = False
 
         def _search(n, depth=0):
-            nonlocal width_range, signed
+            nonlocal signed
             if depth > 6:
                 return
             if n.type == "packed_dimension":
-                width_range = get_node_text(n, source_text)
+                packed_dims.append(get_node_text(n, source_text).strip())
             for i in range(n.child_count):
                 _search(n.child(i), depth + 1)
 
         _search(node)
+        width_range = "".join(packed_dims) if packed_dims else None
         return width_range, signed
 
     def _parse_variable_port_type(self, node, source_text: str) -> tuple[str, Optional[str], bool]:
         """解析 variable_port_type 节点，返回 (var_type, width_range, signed)"""
         var_type = ""
-        width_range = None
+        packed_dims: list[str] = []  # VMS-06①：多 packed 维度按序收集
         signed = False
 
         def _search(n, depth=0):
-            nonlocal var_type, width_range, signed
+            nonlocal var_type, signed
             if depth > 6:
                 return
             if n.type in ("reg", "logic", "integer"):
                 var_type = n.type
             elif n.type == "packed_dimension":
-                width_range = get_node_text(n, source_text)
+                packed_dims.append(get_node_text(n, source_text).strip())
             elif n.type == "signed":
                 signed = True
             for i in range(n.child_count):
                 _search(n.child(i), depth + 1)
 
         _search(node)
+        width_range = "".join(packed_dims) if packed_dims else None
         return var_type, width_range, signed

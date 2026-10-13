@@ -289,17 +289,18 @@ class IndexBuilder:
             self.index_store.remove_file(fp)
             logger.debug(f"已删除文件索引: {fp}")
 
-        # 重新解析变更文件
+        # 重新解析变更文件（VMS-13 off-by-one 破案修复：file_meta 仅在模块成功入库后
+        # 更新——旧逻辑无条件写，提取失败的文件留下「file_meta 有/modules 无」孤儿态，
+        # 且 mtime 不再变化后增量永不重扫，孤儿固化。失败时保留旧指纹 → 文件再变更
+        # 时 sha 比对触发重扫，自愈闭环。2026-10-13）
         module_count = 0
         for i, file_path in enumerate(all_changed):
             self.index_store.remove_file(file_path)
-            self._parse_and_index_file(file_path)
+            count = self._parse_and_index_file(file_path)
+            if count > 0:
+                self._update_file_meta(file_path)
             if (i + 1) % 50 == 0:
                 logger.info(f"增量进度: {i+1}/{len(all_changed)} 文件")
-
-        # 更新文件元信息
-        for fp in all_changed:
-            self._update_file_meta(fp)
 
         logger.info(f"增量构建完成: {len(all_changed)} 文件重新解析, {len(deleted_files)} 文件删除")
 
@@ -411,6 +412,8 @@ class IndexBuilder:
         """解析单个文件并将其模块添加到索引，返回模块数"""
         result = parse_file(file_path)
         if result is None:
+            # VMS-13：静默 return 是增量孤儿态的源头之一——失败必须留痕
+            logger.warning(f"增量索引: {file_path} 解析失败（parse 返回 None），本轮不入库")
             return 0
 
         tree, source_text = result
@@ -423,6 +426,7 @@ class IndexBuilder:
 
         modules = self.module_extractor.extract(tree, source_text, file_path)
         if not modules:
+            logger.warning(f"增量索引: {file_path} 无模块声明或提取为空，本轮不入库")
             return 0
 
         count = 0

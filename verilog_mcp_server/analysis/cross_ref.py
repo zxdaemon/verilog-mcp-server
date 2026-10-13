@@ -254,11 +254,23 @@ class CrossReference:
         if not mod:
             raise ValueError(f"模块 '{module_name}' 不存在")
 
+        # 精确匹配优先；失败后按实例数组基名匹配——DB 内嵌数组界存储（VMS-01 口径
+        # 特征：u_x[1:0] 计 1 条），裸名/单元素名等值匹配必 miss（VMS-06②，2026-10-13 修复）
+        def _base_name(n: str) -> str:
+            i = n.find("[")
+            return n[:i] if i >= 0 else n
+
         target_inst: Optional[InstanceDef] = None
         for inst in mod.instances:
             if inst.instance_name == instance_name:
                 target_inst = inst
                 break
+        if target_inst is None:
+            base = _base_name(instance_name)
+            for inst in mod.instances:
+                if _base_name(inst.instance_name) == base:
+                    target_inst = inst
+                    break
 
         if not target_inst:
             raise ValueError(f"在模块 '{module_name}' 中未找到例化 '{instance_name}'")

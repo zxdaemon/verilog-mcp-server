@@ -35,7 +35,7 @@ class SignalExtractor:
     def _extract_net_declaration(self, node, source_text: str) -> list[SignalDef]:
         """从 net_declaration (wire) 提取信号"""
         var_type = "wire"
-        width_range = None
+        width_range = None  # 多 packed 维度按序收集拼接（VMS-06①：单值覆盖会丢第一维）
         signed = False
         signals = []
 
@@ -50,15 +50,18 @@ class SignalExtractor:
                         var_type = ntype.type
 
             elif child.type == "data_type_or_implicit":
-                # 可能的宽度 [31:0]
+                # 可能的宽度 [31:0]；二维 packed 如 [1:0][27:0] 全维度保留
+                dims = []
                 for j in range(child.child_count):
                     dt_child = child.child(j)
                     if dt_child.type == "implicit_data_type":
                         for k in range(dt_child.child_count):
                             if dt_child.child(k).type == "packed_dimension":
-                                width_range = get_node_text(dt_child.child(k), source_text)
+                                dims.append(get_node_text(dt_child.child(k), source_text).strip())
                             elif dt_child.child(k).type == "signed":
                                 signed = True
+                if dims:
+                    width_range = "".join(dims)
 
             elif child.type == "list_of_net_decl_assignments":
                 decl_names = self._extract_names_from_assignments(child, source_text)
@@ -81,6 +84,8 @@ class SignalExtractor:
             child = node.child(i)
 
             if child.type == "data_type_or_implicit":
+                # 二维 packed 如 [1:0][27:0] 全维度保留（VMS-06①）
+                dims = []
                 for j in range(child.child_count):
                     dt = child.child(j)
                     if dt.type == "data_type":
@@ -89,13 +94,15 @@ class SignalExtractor:
                             if dtc.type in ("reg", "logic", "integer", "real"):
                                 var_type = dtc.type
                             elif dtc.type == "packed_dimension":
-                                width_range = get_node_text(dtc, source_text)
+                                dims.append(get_node_text(dtc, source_text).strip())
                             elif dtc.type == "signed":
                                 signed = True
                     elif dt.type == "implicit_data_type":
                         for k in range(dt.child_count):
                             if dt.child(k).type == "packed_dimension":
-                                width_range = get_node_text(dt.child(k), source_text)
+                                dims.append(get_node_text(dt.child(k), source_text).strip())
+                if dims:
+                    width_range = "".join(dims)
 
             elif child.type == "list_of_variable_decl_assignments":
                 decl_names = self._extract_names_from_assignments(child, source_text)
