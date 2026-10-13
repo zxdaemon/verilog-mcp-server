@@ -246,7 +246,10 @@ class SignalExtractor:
                 rhs = ""
                 for idx in range(n.child_count):
                     c = n.child(idx)
-                    if c.type == "net_lvalue" or (c.type == "simple_identifier" and not lhs):
+                    # 本 grammar（tree-sitter-language-pack systemverilog）过程赋值
+                    # 左值为 variable_lvalue（连续赋值才是 net_lvalue）——只认后者
+                    # 曾致 always 型 drivers/loads 全库零产出（VMS-17 三层真因）
+                    if c.type in ("net_lvalue", "variable_lvalue") or (c.type == "simple_identifier" and not lhs):
                         lhs = get_node_text(c, source_text)
                     elif c.type == "expression":
                         rhs = get_node_text(c, source_text)
@@ -271,19 +274,21 @@ class SignalExtractor:
                             )
                             loads_map.setdefault(sig, []).append(ld)
 
-            elif kind == "if_statement":
-                for idx in range(n.child_count):
-                    c = n.child(idx)
-                    if c.type in ("expression", "parenthesized_expression"):
-                        expr_text = get_node_text(c, source_text)
-                        for sig in extract_signal_refs(expr_text):
-                            ld = LoadInfo(
-                                type="always_block",
-                                target="if condition",
-                                file_path=file_path, line=get_node_line(n),
-                            )
-                            loads_map.setdefault(sig, []).append(ld)
-                        break
+            elif kind in ("if_statement", "conditional_statement"):
+                # 本 grammar 将 else-if 扁平化进同一节点（else/if 为裸 token +
+                # 后续 cond_predicate 兄弟）——须收集全部条件，不得取首即 break；
+                # 优先 cond_predicate（本 grammar 条件包装层），退化接受 expression
+                preds = [c for c in n.children if c.type == "cond_predicate"] or \
+                        [c for c in n.children if c.type in ("expression", "parenthesized_expression")]
+                for c in preds:
+                    expr_text = get_node_text(c, source_text)
+                    for sig in extract_signal_refs(expr_text):
+                        ld = LoadInfo(
+                            type="always_block",
+                            target="if condition",
+                            file_path=file_path, line=get_node_line(n),
+                        )
+                        loads_map.setdefault(sig, []).append(ld)
 
             elif kind in ("case_statement", "casez_statement", "casex_statement"):
                 for idx in range(n.child_count):

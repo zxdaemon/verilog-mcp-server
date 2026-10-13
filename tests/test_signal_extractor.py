@@ -78,3 +78,29 @@ def test_extract_always_blocks():
     always_blocks = extractor.extract_always_blocks(mod_node, src)
     assert len(always_blocks) >= 1
     assert any("posedge clk" in b.sensitivity_list for b in always_blocks)
+
+
+def test_extract_drivers_and_loads():
+    """VMS-17 回归：always 型 drivers/loads 提取
+
+    根因：过程赋值左值在本 grammar（tree-sitter-language-pack systemverilog）
+    为 variable_lvalue，旧实现只认 net_lvalue → LHS 恒空 → always 型
+    drivers/loads 全库零产出（assign 型不受影响）。
+    """
+    se = SignalExtractor()
+    tree, _lang = parse_source(MODULE_WITH_SIGNALS)
+    mod = _find_module_node(tree, "test_signals", MODULE_WITH_SIGNALS)
+    drivers, loads = se.extract_drivers_and_loads(mod, MODULE_WITH_SIGNALS, "t.v")
+
+    # reg counter 被 always 块 nonblocking 赋值驱动（修复前 0 条）
+    counter_drvs = [d for d in drivers.get("counter", []) if d.type == "always_block"]
+    assert len(counter_drvs) >= 1
+
+    # wire result 由 assign 驱动、internal 为其 RHS load（既有行为不回归）
+    assert any(d.type == "assign" for d in drivers.get("result", []))
+    assert any(l.type == "assign" for l in loads.get("internal", []))
+
+    # 条件信号拿到 if 条件 load（conditional_statement，修复前 if_statement 不命中）
+    assert any(l.type == "always_block" and "if" in l.target
+               for l in loads.get("rst_n", []))
+    assert any(l.type == "always_block" for l in loads.get("enable", []))
