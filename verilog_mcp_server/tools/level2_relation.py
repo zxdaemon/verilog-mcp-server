@@ -260,9 +260,10 @@ def register_tools(mcp, index_store: IndexStore):
             lines.append(f"   共 {len(instances)} 个例化\n")
             for inst in instances:
                 cycle_flag = " ⚠️" if inst["is_cycle_ref"] else ""
+                gen_flag = " ⚙gen" if inst.get("is_generated") else ""
                 lines.append(
                     f"  {inst['instance_path']:<50} → {inst['module_type']}"
-                    f"{cycle_flag}"
+                    f"{cycle_flag}{gen_flag}"
                 )
             return "\n".join(lines)
         except ValueError as e:

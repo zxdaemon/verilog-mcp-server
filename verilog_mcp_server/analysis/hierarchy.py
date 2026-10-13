@@ -81,7 +81,10 @@ class HierarchyBuilder:
         if include_elab:
             elab_instances = self._index_store.get_elab_instances()
             if elab_instances:
-                return self._build_from_elab(top_module, elab_instances, max_depth)
+                node = self._build_from_elab(top_module, elab_instances, max_depth)
+                if node is not None:
+                    return node
+                # 该类型在 elab 数据中无实例（未被例化/接口等）→ 回退 tree-sitter
 
         # 回退到 tree-sitter 索引
         return self._expand(top_module, "", top_module, set(), 0, max_depth)
@@ -91,70 +94,116 @@ class HierarchyBuilder:
         top_module: str,
         elab_instances: list,
         max_depth: int,
-    ) -> HierarchyNode:
-        """从 pyslang elaboration 数据构建层次树"""
-        # 构建 parent → children 映射
+    ) -> Optional[HierarchyNode]:
+        """从 pyslang elaboration 数据构建层次树（VMS-09 路径前缀树）
+
+        修复两缺陷：
+        1. 旧实现把所有 parent_module="" 的顶层实例兜底挂到请求的 root 键下
+           （``or top_module``）→ 请求子树时整林泄漏；
+        2. children_map 按「父实例名」建键、按「模块类型」查——仅实例名与
+           类型同名时侥幸命中，其余子树静默截断。
+
+        新实现按 hierarchical_path 前缀关系建树：实例的父 = 其路径剥尾段后
+        最近的存在实例路径（中间剥掉的段为 generate 域）。子树根 = 该类型
+        的全部 elab 实例（同名多处例化时各自成根）。
+
+        Returns:
+            HierarchyNode 根；该类型在 elab 数据中无实例时返回 None（调用方
+            回退 tree-sitter 路径）。
+        """
+        inst_map: dict[str, object] = {i.hierarchical_path: i for i in elab_instances}
+
+        # 实例父路径解析：剥尾段，直到落在某个实例路径上（generate 域段被跳过）
+        def _instance_parent(path: str) -> str:
+            cur = path.rsplit(".", 1)[0] if "." in path else ""
+            while cur and cur not in inst_map:
+                cur = cur.rsplit(".", 1)[0] if "." in cur else ""
+            return cur
+
         children_map: dict[str, list] = {}
-        inst_map: dict[str, object] = {}
-
         for inst in elab_instances:
-            parent = inst.parent_module or top_module
-            children_map.setdefault(parent, []).append(inst)
-            inst_map[inst.hierarchical_path] = inst
+            p = _instance_parent(inst.hierarchical_path)
+            children_map.setdefault(p, []).append(inst)
 
+        # 子树根：该类型的全部 elab 实例（按路径排序保证输出稳定）
+        roots = sorted(
+            (i for i in elab_instances if i.module_type == top_module),
+            key=lambda i: i.hierarchical_path,
+        )
+        if not roots:
+            return None
+
+        def _make_node(inst) -> HierarchyNode:
+            node = HierarchyNode(
+                module_name=inst.module_type,
+                instance_name=inst.instance_name,
+                instance_path=inst.hierarchical_path,
+                file_path=inst.file_path,
+                line_start=inst.line,
+            )
+            if inst.is_generated:
+                node.is_generated = True
+                node.generate_info = inst.generate_condition
+            return node
+
+        if len(roots) == 1:
+            root = _make_node(roots[0])
+            root.instance_name = ""  # 根节点不计入扁平例化列表
+            self._expand_elab_path(root, roots[0].hierarchical_path,
+                                   children_map, set(), 0, max_depth)
+            return root
+
+        # 同名多例化：虚拟根挂多棵子树（子树根实例自身计入扁平列表）
         root = HierarchyNode(
             module_name=top_module,
             instance_name="",
             instance_path=top_module,
             file_path=self._index_store.get_module(top_module).file_path if self._index_store.get_module(top_module) else "",
         )
-
-        self._expand_elab(root, top_module, children_map, set(), 0, max_depth)
+        for r in roots:
+            child = _make_node(r)
+            self._expand_elab_path(child, r.hierarchical_path,
+                                   children_map, set(), 0, max_depth)
+            root.children.append(child)
         return root
 
-    def _expand_elab(
+    def _expand_elab_path(
         self,
         node: HierarchyNode,
-        module_name: str,
+        instance_path: str,
         children_map: dict,
         visited: set[str],
         depth: int,
         max_depth: int,
     ):
-        """递归展开 pyslang elaboration 层次"""
+        """按实例路径展开子树（children_map 键 = 父实例路径）"""
         if depth >= max_depth:
             return
 
-        new_visited = visited | {module_name}
-        children = children_map.get(module_name, [])
-
-        for inst in children:
-            child_path = inst.hierarchical_path
-            child_mod_name = inst.module_type
-
-            if child_mod_name in visited:
+        new_visited = visited | {node.module_name}
+        for inst in children_map.get(instance_path, []):
+            if inst.module_type in visited:
                 node.children.append(HierarchyNode(
-                    module_name=child_mod_name,
+                    module_name=inst.module_type,
                     instance_name=inst.instance_name,
-                    instance_path=child_path,
+                    instance_path=inst.hierarchical_path,
                     is_cycle_ref=True,
                 ))
                 continue
 
             child_node = HierarchyNode(
-                module_name=child_mod_name,
+                module_name=inst.module_type,
                 instance_name=inst.instance_name,
-                instance_path=child_path,
+                instance_path=inst.hierarchical_path,
                 file_path=inst.file_path,
                 line_start=inst.line,
             )
-
-            # 标记 generate 展开实例
             if inst.is_generated:
                 child_node.is_generated = True
                 child_node.generate_info = inst.generate_condition
 
-            self._expand_elab(child_node, child_mod_name, children_map, new_visited, depth + 1, max_depth)
+            self._expand_elab_path(child_node, inst.hierarchical_path,
+                                   children_map, new_visited, depth + 1, max_depth)
             node.children.append(child_node)
 
     def _expand(
@@ -243,7 +292,9 @@ class HierarchyBuilder:
         result: list[dict] = []
 
         def _walk(node: HierarchyNode, depth: int):
-            if node.instance_name:  # 跳过根节点
+            # 根节点（depth 0 且无实例名）不计入；数组元素 instance_name 为空串
+            # （pyslang 命名唯一可靠源是 hierarchical_path），非根一律入列
+            if depth > 0 or node.instance_name:
                 result.append({
                     "instance_name": node.instance_name,
                     "module_type": node.module_name,
@@ -251,6 +302,8 @@ class HierarchyBuilder:
                     "depth": depth,
                     "file_path": node.file_path,
                     "is_cycle_ref": node.is_cycle_ref,
+                    "is_generated": bool(node.is_generated),
+                    "generate_info": node.generate_info or "",
                     "ports": [p.name for p in node.ports],
                 })
             for child in node.children:

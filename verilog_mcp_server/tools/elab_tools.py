@@ -31,9 +31,34 @@ def register_tools(mcp, index_store: IndexStore):
 
         lines = ["📊 **pyslang Elaboration 报告**\n"]
 
-        # 顶层模块
+        # 引用判据（VMS-11 顶层身份 + 缺席报告共用）：tree-sitter 实例条目中出现过的类型
+        ts_modules = index_store.get_all_modules()
+        referenced_types: set[str] = set()
+        for m in ts_modules:
+            for inst in m.instances:
+                if inst.module_type:
+                    referenced_types.add(inst.module_type.lower())
+
+        # 顶层模块身份标注（VMS-11）：配置未设 top_module = 全林展开模式，
+        # 顶层实例按「源码是否引用」分两桶——有引用即孤儿根（if/case-generate
+        # 死分支、调试结构等被静态源码引用但参数求值后独立展开），无引用即
+        # 库单元/死代码根
         if report.top_modules:
-            lines.append(f"**顶层模块**: {', '.join(report.top_modules)}")
+            ref_tops = [t for t in report.top_modules if t.lower() in referenced_types]
+            unref_tops = [t for t in report.top_modules if t.lower() not in referenced_types]
+            lines.append(f"**顶层模块身份**（共 {len(report.top_modules)}）：")
+            lines.append(
+                f"  ├─ 孤儿根·源码有引用（条件分支死区/调试结构，参数求值后独立展开）: {len(ref_tops)}"
+            )
+            for t in ref_tops[:15]:
+                lines.append(f"  │    {t}")
+            if len(ref_tops) > 15:
+                lines.append(f"  │    ... 还有 {len(ref_tops) - 15} 个")
+            lines.append(f"  └─ 未引用根（库单元/死代码）: {len(unref_tops)}")
+            for t in unref_tops[:15]:
+                lines.append(f"       {t}")
+            if len(unref_tops) > 15:
+                lines.append(f"       ... 还有 {len(unref_tops) - 15} 个")
 
         # 实例统计
         lines.append(f"\n**实例统计**:")
@@ -75,19 +100,11 @@ def register_tools(mcp, index_store: IndexStore):
                 lines.append(f"  ... 还有 {len(report.diagnostics) - 20} 条诊断")
 
         # ── 缺席模块报告：声明集 − elab 类型集（VMS-02）──
-        ts_modules = index_store.get_all_modules()
         elab_types = set(index_store.get_elab_module_types())
         missing = sorted({m.name for m in ts_modules} - elab_types)
         if not elab_types:
             lines.append("\n**缺席模块报告**: elab 无实例数据，不可用")
         elif missing:
-            # 引用判据：tree-sitter 实例条目中出现过的类型
-            # （generate-case 块内例化不在收集器内——高危清单是「已例化」下界）
-            referenced_types: set[str] = set()
-            for m in ts_modules:
-                for inst in m.instances:
-                    if inst.module_type:
-                        referenced_types.add(inst.module_type.lower())
             high_risk = [n for n in missing if n.lower() in referenced_types]
             orphans = [n for n in missing if n.lower() not in referenced_types]
 
@@ -125,7 +142,8 @@ def register_tools(mcp, index_store: IndexStore):
             )
             lines.append(
                 "  口径注: 引用判据取自 tree-sitter 实例条目（generate-case 块内例化"
-                "不在收集器内），高危清单为「已例化」下界"
+                "自 2026-10-13 修复起已收集）；残余高危多为参数条件例化未命中"
+                "（generate case 分支参数求值未走中——静态上界 vs 求值真值的合法口径差）"
             )
             if high_risk:
                 lines.append("  ⚠ 高危（已例化但 elab 无踪——elab 层结论对其静默缺失）:")
