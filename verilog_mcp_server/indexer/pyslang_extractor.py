@@ -79,8 +79,29 @@ class PyslangExtractor:
             for child in inst.body:
                 if child.kind.name == "Instance":
                     _visit_instance(child, path)
+                elif child.kind.name == "InstanceArray":
+                    # 实例数组（u_x[3:0](...)）——VMS-04 真凶：纯数组例化的模块
+                    # 类型曾整体缺席 elab 报告（103/117 缺席件仅数组例化）
+                    _visit_instance_array(child, path)
                 elif child.kind.name == "GenerateBlockArray":
                     _visit_generate_block_array(child, path)
+                elif child.kind.name == "GenerateBlock":
+                    _visit_generate_block(child, path)
+
+        def _visit_instance_array(
+            inst_array: "pyslang.ast.InstanceArraySymbol", parent_path: str
+        ):
+            """下钻实例数组的每个元素（elements → InstanceSymbol，路径形如 TOP.u[0]）"""
+            for element in getattr(inst_array, "elements", []):
+                kind = element.kind.name
+                if kind == "Instance":
+                    _visit_instance(element, parent_path)
+                elif kind == "InstanceArray":
+                    _visit_instance_array(element, parent_path)
+                elif kind == "GenerateBlockArray":
+                    _visit_generate_block_array(element, parent_path)
+                elif kind == "GenerateBlock":
+                    _visit_generate_block(element, parent_path)
 
         def _visit_generate_block_array(
             gen_array: "pyslang.ast.GenerateBlockArraySymbol", parent_path: str
@@ -89,6 +110,8 @@ class PyslangExtractor:
                 for child in entry:
                     if child.kind.name == "Instance":
                         _visit_instance(child, parent_path)
+                    elif child.kind.name == "InstanceArray":
+                        _visit_instance_array(child, parent_path)
                     elif child.kind.name == "GenerateBlockArray":
                         _visit_generate_block_array(child, parent_path)
                     elif child.kind.name == "GenerateBlock":
@@ -100,6 +123,8 @@ class PyslangExtractor:
             for child in gen_block:
                 if child.kind.name == "Instance":
                     _visit_instance(child, parent_path)
+                elif child.kind.name == "InstanceArray":
+                    _visit_instance_array(child, parent_path)
                 elif child.kind.name == "GenerateBlockArray":
                     _visit_generate_block_array(child, parent_path)
                 elif child.kind.name == "GenerateBlock":

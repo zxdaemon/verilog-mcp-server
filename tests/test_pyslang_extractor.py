@@ -69,7 +69,74 @@ class TestExtractElaboratedInstances:
         assert len(child_instances) >= 2
 
 
-class TestExtractResolvedSignals:
+INSTANCE_ARRAY_AND_GEN_SRC = """
+module arr_sub(input a, output b);
+  assign b = a;
+endmodule
+
+module case_sub(input a, output b);
+  assign b = ~a;
+endmodule
+
+module arr_top(input a, output b, output c);
+  // 纯实例数组例化——VMS-04 回归锚：修复前该类型整体缺席 elab 报告
+  arr_sub ua[1:0](.a(a), .b(b));
+  generate
+    case (1'b1)
+      1'b1: begin : cgen
+        case_sub cu(.a(a), .b(c));
+      end
+      default: begin : cdef
+        assign c = 1'b0;
+      end
+    endcase
+  endgenerate
+endmodule
+"""
+
+
+@pytest.fixture
+def array_design_root():
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".sv", delete=False) as f:
+        f.write(INSTANCE_ARRAY_AND_GEN_SRC)
+        path = f.name
+    try:
+        parser = PyslangParser()
+        compilation = parser.parse_files([path])
+        root = parser.elaborate(compilation)
+        yield root
+    finally:
+        os.unlink(path)
+
+
+class TestInstanceArrayAndGenerateScopes:
+    """VMS-04 修复回归：InstanceArray 下钻 + GenerateBlock 域内实例提取"""
+
+    def test_instance_array_elements_extracted(self, array_design_root):
+        extractor = PyslangExtractor()
+        instances = extractor.extract_elaborated_instances(array_design_root)
+        arr = [i for i in instances if i.module_type == "arr_sub"]
+        assert len(arr) == 2  # ua[0] + ua[1]，修复前为 0（类型整体缺席）
+        paths = {i.hierarchical_path for i in arr}
+        assert "arr_top.ua[0]" in paths
+        assert "arr_top.ua[1]" in paths
+
+    def test_generate_scope_instances_extracted(self, array_design_root):
+        extractor = PyslangExtractor()
+        instances = extractor.extract_elaborated_instances(array_design_root)
+        case = [i for i in instances if i.module_type == "case_sub"]
+        assert len(case) == 1  # cgen.cu，修复前 case/if-generate 域内实例被跳过
+        assert "cgen.cu" in case[0].hierarchical_path
+
+    def test_array_elements_marked_generated(self, array_design_root):
+        extractor = PyslangExtractor()
+        instances = extractor.extract_elaborated_instances(array_design_root)
+        arr = [i for i in instances if i.module_type == "arr_sub"]
+        for i in arr:
+            assert i.is_generated  # 路径含 "[" → is_generated
+
+
+
     def test_extracts_signals(self, design_root):
         extractor = PyslangExtractor()
         signals = extractor.extract_resolved_signals(design_root)
